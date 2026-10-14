@@ -1,0 +1,9 @@
+# Every text file is stored and checked out with LF, on every operating system.
+# These files are read and run on Linux hosts, where a script with CRLF line
+# endings fails. A fixed line ending also keeps a file's hash identical on every
+# machine that clones it, so a digest taken on one host verifies on another.
+* text=auto eol=lf
+
+# Windows batch files need CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf

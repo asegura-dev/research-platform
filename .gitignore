@@ -1,0 +1,16 @@
+# Instance data. This repository publishes the design of the platform, never an
+# instance of it: hostnames, addresses, ntfy topics, ping URLs and tokens live
+# outside git (ADR-006). The rules match the shape of a local file rather than
+# one predicted name, because the copy someone actually saves is rarely spelled
+# the way the rule expected.
+/local/
+*.local.*
+.env
+.env.*
+!.env.example
+
+# OS and editor noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
