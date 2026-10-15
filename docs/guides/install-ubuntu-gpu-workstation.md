@@ -1,16 +1,17 @@
 # Install Ubuntu Desktop on the GPU workstation
 
 > **Scope:** the dual-boot GPU workstation only. Windows keeps its internal
-> NVMe disk and is never written to. Ubuntu Desktop goes on a second NVMe SSD
-> with its own EFI system partition and boot loader. During a trial the SSD
+> NVMe disks, which are never written to. Ubuntu Desktop goes on its own NVMe
+> SSD with its own EFI system partition and boot loader. During a trial the SSD
 > sits in a USB4 enclosure; if the trial passes, the same installation moves to
 > an internal M.2 slot (section 31). For a single-OS service host, use
 > [install-ubuntu-server.md](install-ubuntu-server.md).
 
 > **Status:** written from official documentation and source code on
-> 2026-10-13; not yet run end to end. After its first complete run, this line
-> records the date, the versions it was verified with, and the USB4 mode that
-> section 8 found.
+> 2026-10-13, and revised on 2026-10-14 after the first inventory (section 2)
+> and an independent review; not yet run end to end. After its first complete run, this line records the
+> date, the versions it was verified with, and the USB4 mode that section 8
+> found.
 
 The trial answers one question: does Ubuntu, with this hardware, the NVIDIA
 driver and the training stack, work well enough to justify taking the PC apart
@@ -27,6 +28,12 @@ How to follow it:
   them, and only once their output matches what the section expects.
 - Outputs quoted here are examples; names, serial numbers and versions on your
   machine will differ.
+- Copy commands from this guide instead of typing them: open it in a browser on
+  the PC itself, in Windows and, from section 7 on, in Firefox in Ubuntu (the
+  repository is public). In a terminal, paste with Ctrl+Shift+V. Replace every
+  `<placeholder>` before pressing Enter.
+- When something does not look as a section expects, read *If something goes
+  wrong*, near the end, before improvising.
 
 ## Hardware
 
@@ -36,7 +43,8 @@ How to follow it:
 | CPU | AMD Ryzen 9 7900X, 12 cores, 24 threads |
 | Memory | 64 GB DDR5 |
 | GPUs | NVIDIA RTX 5080 16 GB (Blackwell, PCIe 5.0) and RTX 4070 12 GB (Ada, PCIe 4.0) |
-| Windows disk | Internal NVMe, Windows 11 with BitLocker or device encryption |
+| Windows disk | Internal NVMe with Windows 11, which may use BitLocker or device encryption |
+| Windows data disk | Internal NVMe with an NTFS data volume; optional |
 | Ubuntu disk | NVMe SSD in a UGREEN USB4 40 Gbps enclosure, on a rear USB4 port |
 
 ## Placeholders
@@ -45,6 +53,8 @@ How to follow it:
 - `<windows-disk>` and `<windows-esp>`: the Windows NVMe and its EFI system
   partition, as Linux names them in the current boot (for example
   `/dev/nvme0n1` and `/dev/nvme0n1p1`).
+- `<windows-data-disk>`: the Windows data disk, if the PC has one (for example
+  `/dev/nvme1n1`). Steps marked "if there is one" are skipped without it.
 - `<ubuntu-disk>`: the SSD in the enclosure (for example `/dev/sda` when it runs
   as a USB disk, `/dev/nvme1n1` when it runs over PCIe).
 - `<uuid-5080>` and `<uuid-4070>`: the GPUs' UUIDs as `nvidia-smi -L` prints
@@ -65,10 +75,11 @@ recovery keys to this repository.
 | Release | Ubuntu Desktop 24.04.5.1 LTS, the Desktop rebuild of 24.04.5 | The same release on every host | [ADR-001](../adr/ADR-001-ubuntu-24-04-lts-on-every-host.md) |
 | Image and kernel | Desktop, with its default HWE kernel (7.0) | The machine is used at its own screen; the GA kernel (6.8) has no driver for the board's RTL8126 network chip | [ADR-009](../adr/ADR-009-the-workstation-runs-ubuntu-desktop-on-its-own-disk.md) |
 | Ubuntu disk | Its own SSD with its own EFI system partition, ext4, no LVM, no encryption; USB4 enclosure during the trial, internal slot if it passes | Windows never depends on it, and it never depends on Windows | [ADR-009](../adr/ADR-009-the-workstation-runs-ubuntu-desktop-on-its-own-disk.md) |
-| Starting Windows | Only from the firmware boot menu, never from GRUB | Starting Windows through shim and GRUB changes what BitLocker measures | [ADR-009](../adr/ADR-009-the-workstation-runs-ubuntu-desktop-on-its-own-disk.md) |
+| Starting Windows | Only from the firmware boot menu, never from GRUB | Windows never depends on Ubuntu's boot loader, and BitLocker, if on, always measures the same boot chain | [ADR-009](../adr/ADR-009-the-workstation-runs-ubuntu-desktop-on-its-own-disk.md) |
 | Default boot | Ubuntu first when its SSD is connected | Ubuntu is the workstation's default system | [ADR-003](../adr/ADR-003-the-workstation-boots-native-ubuntu-not-wsl2.md) |
-| USB4 mode | P or U, chosen by the test of section 8 | Keeps the trial from losing its root filesystem | Section 8 |
-| BitLocker | Suspended from section 3 until section 20 | The firmware and the boot chain change in between | Sections 3 and 20 |
+| USB4 mode | P or U, chosen by the test of section 8 | Keeps the trial from losing its root filesystem | Sections 8 and 12 |
+| BitLocker | If Windows is encrypted, suspended from section 3 until section 20 | The firmware and the boot chain change in between | Sections 3 and 20 |
+| Device encryption | If Windows is not encrypted, kept from turning itself on during the trial | Turning Secure Boot on can make Windows encrypt its disks by itself, in the middle of the install | Section 3 |
 | Monitor | On the RTX 5080, as before | Windows is used as before; section 19 measures what the desktop takes | Section 19 |
 | Restore on AC/Power Loss | Power Off | Nothing resumes a training run after a power cut | Section 6 |
 | Suspend | Disabled | Open bug with kernel 7.0 and RTX 50 cards on resume; the USB4 tunnels | Section 15 |
@@ -85,16 +96,19 @@ recovery keys to this repository.
 
 - A USB stick of 8 GB or more. Writing the image erases it.
 - The Ubuntu SSD in the UGREEN USB4 enclosure, with the USB-C to USB-C cable
-  that came with the enclosure. Everything on the SSD will be erased.
-- The BitLocker recovery key of the Windows disk, readable from another device:
-  on paper, or through https://aka.ms/myrecoverykey if it is saved in a
-  Microsoft account. Section 3 checks that it is the right one.
+  that came with the enclosure. Everything on the SSD will be erased; section 2
+  shows what it holds, so that you can first copy anything still needed.
+- If Windows is encrypted, the BitLocker recovery key of the Windows disk,
+  readable from another device: on paper, or through
+  https://aka.ms/myrecoverykey if it is saved in a Microsoft account. Section 3
+  checks that it is the right one.
 - A wired network connection.
 - The monitor and keyboard you normally use.
 - An afternoon for sections 1 to 21, and a night for the training test of
   section 26.
 
-**Check:** you can read the recovery key on a device other than this PC.
+**Check:** you can read the recovery key on a device other than this PC, or
+there is no key because Windows is not encrypted, which section 2 confirms.
 
 ### 2. Inventory from Windows (read-only)
 
@@ -118,13 +132,18 @@ Get-Disk | Format-Table Number, FriendlyName, SerialNumber, BusType, PartitionSt
 
 # Partitions of every disk: System (EFI), Reserved, Basic and Recovery
 Get-Partition | Format-Table DiskNumber, PartitionNumber, DriveLetter, Type, Size -AutoSize
+
+# Volumes and how full they are: what each disk holds now
+Get-Volume | Format-Table DriveLetter, FileSystemLabel, FileSystem, Size, SizeRemaining -AutoSize
 ```
 
 Over USB4 the enclosure can appear with BusType `NVMe` (a PCIe tunnel) or `USB`.
-BusType alone therefore does not tell it apart from the Windows disk: use model,
-serial number and size. For an NVMe disk, Windows often shows as serial number
-the disk's EUI-64 identifier, in groups like `0025_3881_…`, instead of the
-controller's serial number; section 7 shows where Linux lists both.
+BusType alone therefore does not tell it apart from the internal disks: use
+model, serial number and size. For an NVMe disk, Windows often shows as serial
+number a namespace identifier instead of the controller's serial number: the
+NGUID, in groups of four hexadecimal digits, or the shorter EUI-64 padded with
+sixteen leading zeros (`0000_0000_0000_0000_…`). Section 7 shows where Linux
+lists both.
 
 BitLocker:
 
@@ -180,13 +199,16 @@ Fill in this table in your private note:
 |---|---|
 | Windows disk: model, serial number, size, disk number | |
 | Its EFI system partition: size | |
+| Windows data disk, if there is one: model, serial number, size, disk number, drive letter | |
 | Ubuntu SSD: model, serial number, size, BusType, LogicalSectorSize | |
-| BitLocker: protection status, PCR Validation Profile, recovery key ID | |
+| Ubuntu SSD: what its volumes hold now | |
+| BitLocker: encrypted or not; protection status, PCR Validation Profile, recovery key ID | |
 | Secure Boot: on or off; `Microsoft Corporation UEFI CA 2011` in db; which 2023 certificates | |
 | Fast Startup | |
 | Firmware version | |
 
-**Check:** the table is complete. **STOP** if *BIOS Mode* is not UEFI, or if
+**Check:** the table is complete, and nothing on the Ubuntu SSD is still
+needed: copy it elsewhere first. **STOP** if *BIOS Mode* is not UEFI, or if
 `Microsoft Corporation UEFI CA 2011` is not in db: Ubuntu 24.04's installer and
 boot loader are signed through that certificate and do not start with Secure
 Boot on. If Secure Boot is off and `Get-SecureBootUEFI` finds no db at all, the
@@ -195,6 +217,8 @@ firmware has no keys yet: section 6 installs them, then repeat this check.
 ### 3. Prepare Windows
 
 #### Confirm the recovery key
+
+Skip this part if `manage-bde -status C:` showed no encryption.
 
 In the output of `manage-bde -protectors -get C:`, the *Numerical Password*
 protector has an ID like `{1A2B3C4D-…}`. The recovery screen asks for the key
@@ -216,6 +240,43 @@ fast startup (recommended)* → *Save changes*.
 
 ```powershell
 Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Power' -Name HiberbootEnabled   # now 0
+```
+
+If the value is still 1, or the checkbox is missing, set the same registry value
+that the checkbox controls, from PowerShell as administrator, and read it again:
+
+```powershell
+Set-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Power' -Name HiberbootEnabled -Value 0
+Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Power' -Name HiberbootEnabled   # now 0
+```
+
+#### Keep Windows from encrypting itself
+
+Only if section 2 found no encryption. Microsoft's BitLocker overview: "If a
+device doesn't initially qualify for device encryption, but then a change is
+made that causes the device to qualify (for example, by turning on Secure
+Boot), device encryption enables BitLocker automatically". It covers the system
+drive and the fixed data drives. Section 6 may turn Secure Boot on, so Windows
+could start encrypting its disks in the middle of the install, with nothing in
+this guide suspending it. Microsoft documents a registry value that prevents
+it. Set it for the trial; turning BitLocker on afterwards is a decision of its
+own, and this guide's BitLocker steps then apply.
+
+Open PowerShell as administrator. Read-only first:
+
+```powershell
+Test-Path 'HKLM:\SYSTEM\CurrentControlSet\Control\BitLocker'    # True
+Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\BitLocker' -Name PreventDeviceEncryption -ErrorAction SilentlyContinue   # nothing yet
+```
+
+If `Test-Path` printed False, create the key first with
+`New-Item 'HKLM:\SYSTEM\CurrentControlSet\Control\BitLocker'`. Never add
+`-Force` to it: on an existing key it can replace the key with an empty one.
+Then:
+
+```powershell
+Set-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\BitLocker' -Name PreventDeviceEncryption -Type DWord -Value 1
+Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\BitLocker' -Name PreventDeviceEncryption   # PreventDeviceEncryption : 1
 ```
 
 #### Suspend BitLocker
@@ -240,8 +301,9 @@ The volume stays encrypted, but while protection is suspended its key is kept
 on the disk in the clear: anyone holding the disk could read it. Section 20
 turns protection back on. Do not leave it suspended.
 
-**Check:** `HiberbootEnabled` is 0, `manage-bde -status C:` shows *Protection
-Off*, and you hold the recovery key whose ID matches.
+**Check:** `HiberbootEnabled` is 0. If Windows is encrypted,
+`manage-bde -status C:` also shows *Protection Off*, and you hold the recovery
+key whose ID matches. If it is not, `PreventDeviceEncryption` is 1.
 
 ### 4. Download and verify the image
 
@@ -265,16 +327,16 @@ $actual -eq $expected     # True (PowerShell compares strings without regard to 
 ```
 
 Authenticity needs `gpg`: Gpg4win on Windows, or any Linux machine, such as the
-service host:
+service host. The commands are the same in PowerShell, each on one line:
 
 ```bash
+gpg --keyid-format long --keyserver hkp://keyserver.ubuntu.com --recv-keys 0x46181433FBB75451 0xD94AA3F0EFE21092
+gpg --keyid-format long --list-keys --with-fingerprint 0x46181433FBB75451 0xD94AA3F0EFE21092
 gpg --keyid-format long --verify SHA256SUMS.gpg SHA256SUMS
-# If it says "No public key", fetch Ubuntu's image signing keys and retry:
-gpg --keyid-format long --keyserver hkp://keyserver.ubuntu.com \
-    --recv-keys 0x46181433FBB75451 0xD94AA3F0EFE21092
-gpg --keyid-format long --list-keys --with-fingerprint \
-    0x46181433FBB75451 0xD94AA3F0EFE21092
 ```
+
+If the first command hangs or fails, the network blocks the keyserver's port:
+use `hkps://` instead of `hkp://`.
 
 The fingerprints must be exactly:
 
@@ -349,9 +411,23 @@ Secure Boot keys:
   certificates that Windows Update has added since, and once Windows' own boot
   manager is signed with a 2023 certificate, Windows would no longer start.
 - If Secure Boot was off but keys are installed, set *Secure Boot* to Enabled.
-- If no keys are installed (Windows found no db in section 2), use *Install
-  Default Secure Boot Keys*, enable Secure Boot, start Windows and repeat the
-  Secure Boot commands of section 2.
+- If no keys are installed (Windows found no db in section 2), in this order:
+  *CSM* Disabled, *Secure Boot Mode* Standard, *Install Default Secure Boot
+  Keys*, *Secure Boot* Enabled, then save with F10. Start Windows, repeat the
+  Secure Boot commands of section 2, and run `manage-bde -status`: every volume
+  still reads *Fully Decrypted* (in Spanish, *Descifrado completo*). If one
+  reads anything else, such as *Encryption in Progress*, Windows began
+  encrypting it: **STOP**, and follow section 3's BitLocker steps before
+  section 7. If Windows refuses to start, set *Secure Boot* back to Disabled:
+  Windows starts as before, and the case needs its own decision before going
+  on.
+
+After saving, the first start can stay black for a minute or more while the
+board retrains its memory: wait before touching anything. If no picture appears
+on the RTX 5080's monitor, plug the monitor into the board's own HDMI port,
+which the CPU's graphics drive. As a last resort, turn the PC off, unplug the
+power supply, press the *Clear CMOS* button on the rear panel, and apply this
+section again: that button restores the factory settings.
 
 If the firmware ever offers to reset or clear the fTPM, for example after a CPU
 or firmware change, decline: clearing the TPM is one of Microsoft's recovery
@@ -361,11 +437,11 @@ If the stick is refused with a message such as *Secure Boot Violation* or
 *Invalid signature*, the firmware's db lacks `Microsoft Corporation UEFI CA
 2011`; section 2 should have caught it. Canonical states that existing Ubuntu
 installation media require that certificate, and the installed boot loader is
-signed through it too. The fix, with BitLocker suspended: if the factory keys
-include it, *Install Default Secure Boot Keys* restores it; check again from
-Windows afterwards, and let Windows Update add the 2023 certificates back
-(section 16). Running with Secure Boot off is a new decision with its own
-record, not a quiet change.
+signed through it too. The fix, with BitLocker suspended if Windows is
+encrypted: if the factory keys include it, *Install Default Secure Boot Keys*
+restores it; check again from Windows afterwards, and let Windows Update add
+the 2023 certificates back (section 16). Running with Secure Boot off is a new
+decision with its own record, not a quiet change.
 
 **Check:** with the stick inserted, the boot menu (F11) lists it as a UEFI
 device, and Windows still starts from *Windows Boot Manager*.
@@ -378,7 +454,7 @@ GRUB, the boot menu of the stick, reads the keyboard as US English whatever
 your layout. On a Latin American keyboard, the key to the right of `0` types
 `-` (with Shift, `_`) and the next key types `=`.
 
-### 7. Identify the three devices
+### 7. Identify the devices
 
 1. The enclosure is on its rear USB4 port, connected directly with its own
    cable. The stick goes in another port.
@@ -386,11 +462,16 @@ your layout. On a Latin American keyboard, the key to the right of `0` types
 3. In the stick's menu, choose the default entry (*Try or Install Ubuntu* on
    24.04 media). If the screen stays black, restart and choose the entry with
    *safe graphics* in its name.
-4. The installer opens. Choose your language, accessibility options and
-   keyboard; on *Internet connection* choose *Use wired connection*; on *Try or
-   install Ubuntu* choose *Try Ubuntu 24.04.5 LTS* (the release number may read
+4. The installer opens. Language: your choice; English is recommended, because
+   every screen and every command's output then match this guide (the desktop
+   can switch to Spanish later, in *Settings*). Accessibility: your options.
+   Keyboard: your keyboard's own layout, for example *Spanish (Latin
+   American)*; with the wrong layout, typed commands come out wrong. On
+   *Internet connection* choose *Use wired connection*; on *Try or install
+   Ubuntu* choose *Try Ubuntu 24.04.5 LTS* (the release number may read
    slightly differently). The live desktop appears.
-5. Open a terminal (Ctrl+Alt+T).
+5. Open a terminal (Ctrl+Alt+T). Do not open the Windows disks in *Files*:
+   nothing in this guide needs them.
 
 ```bash
 # Every block device with its identity and transport (read-only)
@@ -405,22 +486,29 @@ What to expect:
 - **Windows disk:** `TRAN` nvme; model and serial number as in section 2;
   partitions *EFI System*, *Microsoft reserved*, *Microsoft basic data* (FSTYPE
   `BitLocker` if encrypted) and *Windows recovery environment*.
+- **Windows data disk, if there is one:** `TRAN` nvme; model and serial number
+  as in section 2; partitions *Microsoft reserved* and *Microsoft basic data*.
 - **Ubuntu SSD:** the size of section 2; `TRAN` nvme if the enclosure runs a
   PCIe tunnel, usb if it runs as a USB disk. As a USB disk, the model or serial
-  number shown can be the enclosure bridge's instead of the SSD's.
+  number shown can be the enclosure bridge's instead of the SSD's. If it held a
+  Windows volume, it still shows *Microsoft reserved* and *Microsoft basic data*
+  partitions: go by size and model, never by partition types.
 - **The stick:** `TRAN` usb, one partition mounted at `/cdrom`.
 
-`lsblk` shows the controller's serial number. If Windows showed an EUI-64 instead
-(section 2), look for it in `/dev/disk/by-id`: each NVMe disk has a
-`nvme-<model>_<serial>` link and a `nvme-eui.<identifier>` link, the identifier
-being Windows' value in lowercase, without its underscores and dots.
+`lsblk` shows the controller's serial number. If Windows showed a namespace
+identifier instead (section 2), look for it in `/dev/disk/by-id`: each NVMe disk
+has a `nvme-<model>_<serial>` link and a `nvme-eui.<identifier>` link. The
+identifier is Windows' value in lowercase, without its underscores and final
+dot; when Windows' value starts with sixteen zeros, Linux shows only the last
+sixteen digits.
 
 Write down which name is which, for this boot only.
 
-**STOP.** Go on only when the Windows disk is matched to section 2 by its serial
-number, and the other two devices by size, model and transport.
+**STOP.** Go on only when the Windows disk, and the Windows data disk if there
+is one, are matched to section 2 by serial number, and the Ubuntu SSD and the
+stick by size, model and transport.
 
-**Check:** you know which device is the Windows disk, which is the Ubuntu SSD
+**Check:** you know which device is each Windows disk, which is the Ubuntu SSD
 and which is the stick.
 
 ### 8. Test how the USB4 enclosure behaves
@@ -469,9 +557,8 @@ disappearing and appearing again (a change of mode).
 
 1. Restart, press F11 and choose the stick again.
 2. In the stick's menu, highlight the entry you used in section 7 and press `e`.
-3. Move to the line that starts with `linux` and to its end. If the line
-   contains ` --- `, type a space and `thunderbolt.host_reset=0` at the end. If
-   it does not, type ` --- thunderbolt.host_reset=0`.
+3. Move to the end of the line that starts with `linux`, and type a space and
+   `thunderbolt.host_reset=0`.
 4. Press Ctrl+X (or F10) to start. Choose *Try Ubuntu* again, open a terminal,
    and repeat the commands of boot 1, plus:
 
@@ -487,6 +574,7 @@ grep -H . /sys/bus/thunderbolt/devices/*-*/{authorized,boot} 2>/dev/null   # boo
 |---|---|---|
 | The SSD as nvme, with `authorized` 1 and `boot` 1 | **P**: Linux keeps the PCIe tunnel the firmware built | `thunderbolt.host_reset=0` |
 | The SSD as usb | **U**: the SSD stays a USB disk and nothing authorizes a PCIe tunnel | `thunderbolt.host_reset=0 systemd.mask=bolt.service` |
+| The SSD as nvme with `boot` 0, or switching between usb and nvme while you watch | The tunnel was built after Linux started, which would move a root filesystem. **U** if boot 1 read `security` `user`: then bolt built it, and masking bolt keeps the SSD a USB disk. **STOP** if it read `none`: the kernel builds such tunnels itself | `thunderbolt.host_reset=0 systemd.mask=bolt.service` |
 | The SSD is not visible | **STOP** | |
 
 In mode P the SSD runs over PCIe from the start of every boot, and bolt finds
@@ -499,24 +587,31 @@ On **STOP**, the external trial is not viable with this firmware: go to section
 
 **Check:** you have a mode, P or U, and its parameters; or a STOP.
 
-### 9. Boot for the install and fingerprint the Windows disk
+### 9. Boot for the install and fingerprint the Windows disks
 
 1. Restart, press F11 and choose the stick. Press `e` on the entry you used in
-   section 7 and add your mode's parameters exactly as in boot 2, after ` --- `. The installer
-   copies everything after ` --- ` into the installed system's boot
-   configuration (curtin's `get_carryover_params`), so Ubuntu's first boot uses
-   them too.
-2. Start, choose *Try Ubuntu*, open a terminal.
+   section 7, move to the end of the line that starts with `linux`, and type a
+   space and your mode's parameters, as in boot 2.
+2. Press Ctrl+X, choose *Try Ubuntu*, open a terminal.
+
+The live session needs the parameters so that the SSD stays the same device
+while the installer writes it. The installer does not copy them to the
+installed system: Ubuntu Desktop's installer turns curtin's carry-over of boot
+parameters off. Section 12 adds them at the first start.
 
 Identify the devices again, because their names can differ from section 7:
 
 ```bash
-cat /proc/cmdline                     # your mode's parameters, after ---
+cat /proc/cmdline                                    # your mode's parameters
+cat /sys/module/thunderbolt/parameters/host_reset    # N
+systemctl is-enabled bolt.service                    # mode U only: masked-runtime
 lsblk -o NAME,SIZE,MODEL,SERIAL,TRAN,FSTYPE,PARTTYPENAME,MOUNTPOINTS
-lsblk -o NAME,LOG-SEC,PHY-SEC         # logical sector size of each disk, kept for section 21
+lsblk -o NAME,LOG-SEC,PHY-SEC                        # logical sector size of each disk, kept for section 21
 ```
 
-**STOP** until each device is matched again, as in section 7.
+**STOP** until each device is matched again, as in section 7. The SSD's `TRAN`
+must match the mode: nvme in mode P, usb in mode U. If it does not, the mode did
+not hold: **STOP** and go back to section 8.
 
 Watch the SSD for five minutes (Ctrl+C to stop):
 
@@ -527,26 +622,29 @@ udevadm monitor --kernel --subsystem-match=block     # no "remove" or "add" line
 **STOP** if the SSD disappears or appears again: the chosen mode does not hold.
 Go back to section 8.
 
-Fingerprint the Windows disk. These commands only read it; the two files live in
+Fingerprint the Windows disks. These commands only read them; the files live in
 the live session's memory until you restart:
 
 ```bash
-sudo sfdisk --dump /dev/<windows-disk> > ~/win-gpt-before.txt   # its partition table
-sudo sha256sum /dev/<windows-esp> > ~/win-esp-before.sha256      # every byte of its EFI system partition
-cat ~/win-gpt-before.txt ~/win-esp-before.sha256
+sudo sfdisk --dump /dev/<windows-disk> > ~/win-gpt-before.txt              # its partition table
+sudo sha256sum /dev/<windows-esp> > ~/win-esp-before.sha256                 # every byte of its EFI system partition
+sudo sfdisk --dump /dev/<windows-data-disk> > ~/win-data-gpt-before.txt    # if there is one: its partition table
+cat ~/win-*-before.*
 ```
 
-**Check:** devices matched, the SSD stable for five minutes, both fingerprint
+**Check:** devices matched, the SSD stable for five minutes, the fingerprint
 files written. Do not restart until section 11 has compared them.
 
 ## Part D. Install
 
 ### 10. Run the installer
 
-Start the installer from the live desktop (its *Install Ubuntu* icon). The
-labels below come from the 24.04 installer's source code; check them on screen.
+If the SSD's old volume shows as mounted (in the dock or in *Files*), unmount it
+first with its eject icon. Then start the installer from the live desktop (its
+*Install Ubuntu* icon). The labels below come from the 24.04 installer's source
+code, in English; check them on screen.
 
-1. **Language, accessibility, keyboard:** your choices.
+1. **Language, accessibility, keyboard:** as in section 7.
 2. **Internet connection:** *Use wired connection*.
 3. If it asks again, **Try or install Ubuntu:** *Install Ubuntu*.
 4. **How would you like to install Ubuntu?** *Interactive installation*.
@@ -562,9 +660,10 @@ labels below come from the 24.04 installer's source code; check them on screen.
    installation*.
    - *Advanced features...*: keep **None**: no LVM, no encryption, no ZFS.
 8. **Choose where to install Ubuntu:** *Select drive:* starts on the first disk,
-   which can be the Windows disk. Select the Ubuntu SSD by size and model. *The
-   entire disk will be used:* then lists the SSD's current partitions, never
-   *Microsoft reserved* or *BitLocker* ones.
+   which can be a Windows disk. Select the Ubuntu SSD by size and model. *The
+   entire disk will be used:* then lists the SSD's current partitions. If the
+   SSD held a Windows volume, they include *Microsoft reserved* and NTFS ones,
+   so judge by size and model, not by partition types.
    **STOP:** the drive shown is the Ubuntu SSD.
 9. **Create your account:** your name, your computer's name, your username and
    a password; keep *Require my password to log in*.
@@ -574,7 +673,8 @@ labels below come from the 24.04 installer's source code; check them on screen.
     shows *None*.
     **STOP, point of no return:** *Install* erases the SSD. Press it only if the
     SSD is the only device listed.
-12. When it finishes, choose **Continue testing**, not *Restart now*.
+12. When it finishes, choose **Continue testing**, not *Restart now*: section
+    11 still needs this session.
 
 **Check:** the installer reports that the installation finished, and you are
 back on the live desktop.
@@ -584,9 +684,10 @@ back on the live desktop.
 In the same live session as section 9:
 
 ```bash
-# 1. The Windows disk's partition table and EFI partition are exactly as they were
+# 1. The Windows disks' partition tables and EFI partition are exactly as they were
 sudo sfdisk --dump /dev/<windows-disk> | diff ~/win-gpt-before.txt - && echo "Windows partition table unchanged"
 sudo sha256sum /dev/<windows-esp> | diff ~/win-esp-before.sha256 - && echo "Windows EFI partition unchanged"
+sudo sfdisk --dump /dev/<windows-data-disk> | diff ~/win-data-gpt-before.txt - && echo "Windows data disk unchanged"   # if there is one
 
 # 2. The SSD now holds an EFI system partition and an ext4 root
 lsblk -o NAME,SIZE,FSTYPE,PARTTYPENAME,MOUNTPOINTS /dev/<ubuntu-disk>
@@ -594,17 +695,13 @@ lsblk -o NAME,SIZE,FSTYPE,PARTTYPENAME,MOUNTPOINTS /dev/<ubuntu-disk>
 # 3. The firmware's new "ubuntu" entry points to the SSD's EFI partition
 sudo efibootmgr -v
 lsblk -o NAME,PARTUUID /dev/<ubuntu-disk>     # the EFI partition's PARTUUID appears in the ubuntu entry
-
-# 4. Your mode's parameters reached the installed system
-grep GRUB_CMDLINE_LINUX_DEFAULT /target/etc/default/grub 2>/dev/null \
-  || echo "/target is not mounted: check this in section 12"
 ```
 
-**Check:** both "unchanged" lines print; the SSD has an *EFI System* partition
+**Check:** every "unchanged" line prints; the SSD has an *EFI System* partition
 of about 1 GiB and an ext4 partition filling the rest; the `ubuntu` entry
-carries the PARTUUID of the SSD's EFI partition; the parameters are in
-`GRUB_CMDLINE_LINUX_DEFAULT`, or, if `/target` was not mounted, section 12
-checks them.
+carries the PARTUUID of the SSD's EFI partition. The installed system does not
+have your mode's parameters yet: its first start needs them typed by hand
+(section 12).
 
 If a Windows fingerprint differs, **STOP**. Keep the `diff` output, start
 nothing else, and do not try to repair anything. Restart into the firmware boot
@@ -624,11 +721,40 @@ section 20 sets the order.
 GRUB shows a menu with Ubuntu and *Windows Boot Manager*, because the installer
 found Windows; an arrow key stops its countdown, and if the menu does not appear,
 press Esc while the machine starts. **Do not start Windows from this menu**;
-section 13 explains why and removes the entry. If section 11 could not confirm
-your mode's parameters, press `e` on the Ubuntu entry, add them at the end of the
-`linux` line for this boot, and press Ctrl+X.
+section 13 explains why and removes the entry.
 
-Log in and open a terminal. Read-only checks:
+**This first start needs your mode's parameters typed by hand**, because the
+installer did not copy them (section 9). Without them Linux treats the
+enclosure as in boot 1 of section 8, which can take the root filesystem away.
+On the Ubuntu entry press `e`, move to the end of the line that starts with
+`linux`, type a space and your mode's parameters, and press Ctrl+X. This GRUB
+also reads the keyboard as US English, as in Part C.
+
+Log in and open a terminal. Keep the parameters for every start, recovery mode
+included: they go in `GRUB_CMDLINE_LINUX`, which every Linux entry uses
+(`GRUB_CMDLINE_LINUX_DEFAULT` reaches only the normal ones), and in a file of
+their own, which section 31 deletes. In mode P:
+
+```bash
+echo 'GRUB_CMDLINE_LINUX="$GRUB_CMDLINE_LINUX thunderbolt.host_reset=0"' | sudo tee /etc/default/grub.d/99-usb4-trial.cfg
+```
+
+In mode U:
+
+```bash
+echo 'GRUB_CMDLINE_LINUX="$GRUB_CMDLINE_LINUX thunderbolt.host_reset=0 systemd.mask=bolt.service"' | sudo tee /etc/default/grub.d/99-usb4-trial.cfg
+```
+
+Then:
+
+```bash
+sudo update-grub
+grep -cE '^\s+linux\s+/boot/vmlinuz' /boot/grub/grub.cfg                                       # kernel entries: 3 or more
+grep -E '^\s+linux\s+/boot/vmlinuz' /boot/grub/grub.cfg | grep -c 'thunderbolt.host_reset=0'   # the same number
+grep -E '^\s+linux\s+/boot/vmlinuz' /boot/grub/grub.cfg | grep -c 'systemd.mask=bolt.service'  # mode U only: the same number
+```
+
+Read-only checks:
 
 ```bash
 grep PRETTY_NAME /etc/os-release                      # Ubuntu 24.04.5 LTS
@@ -636,9 +762,10 @@ uname -r                                              # 7.0.0-…-generic: the H
 [ -d /sys/firmware/efi ] && echo UEFI || echo Legacy  # UEFI
 mokutil --sb-state                                    # SecureBoot enabled
 cat /proc/cmdline                                     # your mode's parameters
-grep GRUB_CMDLINE_LINUX_DEFAULT /etc/default/grub     # the same parameters, kept for every boot
+cat /sys/module/thunderbolt/parameters/host_reset     # N
+systemctl is-enabled bolt.service                     # mode U only: masked-runtime
 findmnt -n -o SOURCE,FSTYPE /                         # the SSD (nvme… in mode P, sd… in mode U), ext4
-findmnt -n -o SOURCE /boot/efi                        # the SSD's EFI partition, never the Windows disk
+findmnt -n -o SOURCE /boot/efi                        # the SSD's EFI partition, never a Windows disk
 findmnt --fstab -o SOURCE,TARGET,FSTYPE               # / and /boot/efi listed by /dev/disk/by-uuid/…
 swapon --show                                         # /swap.img, 8G on this machine
 ls /boot/efi/EFI/BOOT /boot/efi/EFI/ubuntu            # BOOTX64.EFI fallback copy; shimx64.efi and grubx64.efi
@@ -646,11 +773,6 @@ ip -br addr                                           # the wired interface is U
 ping -c 3 archive.ubuntu.com                          # network and name resolution
 timedatectl                                           # Time zone: America/Mexico_City
 ```
-
-If the parameters are in `/proc/cmdline` (because you typed them) but not in
-`/etc/default/grub`, add them at the end of the quoted value of
-`GRUB_CMDLINE_LINUX_DEFAULT` with `sudo nano /etc/default/grub`, then run
-`sudo update-grub`.
 
 About the network: the board's wired chip, a Realtek RTL8126 (5 GbE), has a
 Linux driver since kernel 6.9. It works on this HWE kernel and would not on
@@ -683,16 +805,18 @@ If you ever live where daylight saving time applies, undo it with
 `sudo timedatectl set-local-rtc 0` and revisit the decision.
 
 **Check:** every line matches its comment; root and `/boot/efi` are on the SSD;
-the parameters are in both `/proc/cmdline` and `/etc/default/grub`.
+the parameters are in `/proc/cmdline` and in every kernel entry of
+`/boot/grub/grub.cfg`.
 
-### 13. Keep Ubuntu away from the Windows disk
+### 13. Keep Ubuntu away from the Windows disks
 
 #### No Windows entry in GRUB
 
-Starting *Windows Boot Manager* from GRUB runs Windows after shim and GRUB, so
-BitLocker measures a different boot chain and asks for the recovery key. Windows
-starts from the firmware boot menu instead (F11 → *Windows Boot Manager*).
-Turning off os-prober also stops `update-grub` from probing the Windows disk.
+Starting *Windows Boot Manager* from GRUB runs Windows after shim and GRUB: with
+BitLocker on, it measures a different boot chain and asks for the recovery key,
+and without it Windows still depends on Ubuntu's boot loader. Windows starts
+from the firmware boot menu instead (F11 → *Windows Boot Manager*). Turning off
+os-prober also stops `update-grub` from probing the Windows disks.
 
 ```bash
 grep -rn OS_PROBER /etc/default/grub /etc/default/grub.d/ 2>/dev/null   # read-only: current setting
@@ -708,40 +832,45 @@ grep -i "menuentry.*windows" /boot/grub/grub.cfg || echo "no Windows entry"
 With one system left in it, GRUB hides its menu. To reach it (recovery mode, an
 older kernel), press Esc once while the machine starts.
 
-#### The Windows disk hidden from the desktop
+#### The Windows disks hidden from the desktop
 
 The *Files* app lists the Windows partitions under *Other Locations*, and one
 click mounts them read-write: with your password for an unencrypted volume, or
 with the recovery key, which you keep at hand, for a BitLocker one. Nothing in
-this guide needs them. One udev rule tells the desktop's disk service (udisks)
-to ignore that disk and its partitions.
+this guide needs them. One udev rule per disk tells the desktop's disk service
+(udisks) to ignore that disk and its partitions.
 
-Read-only first, the Windows disk's serial number as udev sees it:
+Read-only first, each Windows disk's serial number as udev sees it:
 
 ```bash
 udevadm info --query=property --name=/dev/<windows-disk> | grep -E '^ID_(MODEL|SERIAL_SHORT)='
+udevadm info --query=property --name=/dev/<windows-data-disk> | grep -E '^ID_(MODEL|SERIAL_SHORT)='   # if there is one
 ```
 
-`ID_MODEL` and `ID_SERIAL_SHORT` must be the Windows disk's, as identified in
-section 7. (If the output has no `ID_SERIAL_SHORT`, use `ID_SERIAL` and its value
-in the rule instead.) Then write the rule with that serial number:
+`ID_MODEL` and `ID_SERIAL_SHORT` must match the disks identified in section 7.
+(If an output has no `ID_SERIAL_SHORT`, use `ID_SERIAL` and its value in that
+disk's rule instead.) Then write one rule per disk, leaving out the second line
+if there is no data disk:
 
 ```bash
-echo 'ENV{ID_SERIAL_SHORT}=="<windows-serial>", ENV{UDISKS_IGNORE}="1"' \
-  | sudo tee /etc/udev/rules.d/99-hide-windows-disk.rules
+printf '%s\n' \
+  'ENV{ID_SERIAL_SHORT}=="<windows-serial>", ENV{UDISKS_IGNORE}="1"' \
+  'ENV{ID_SERIAL_SHORT}=="<windows-data-serial>", ENV{UDISKS_IGNORE}="1"' \
+  | sudo tee /etc/udev/rules.d/99-hide-windows-disks.rules
 ```
 
-It applies from the next start. Then:
+It applies from the next start. After restarting:
 
 ```bash
-udevadm info --query=property --name=/dev/<windows-disk> | grep UDISKS_IGNORE   # UDISKS_IGNORE=1
-udevadm info --query=property --name=/dev/<windows-esp>  | grep UDISKS_IGNORE   # its partitions too
+udevadm info --query=property --name=/dev/<windows-disk> | grep UDISKS_IGNORE        # UDISKS_IGNORE=1
+udevadm info --query=property --name=/dev/<windows-esp>  | grep UDISKS_IGNORE        # its partitions too
+udevadm info --query=property --name=/dev/<windows-data-disk> | grep UDISKS_IGNORE   # if there is one: UDISKS_IGNORE=1
 ```
 
-To see the disk again in *Files*, remove that rule file and restart.
+To see a disk again in *Files*, remove its line from that file and restart.
 
 **Check:** no Windows entry in GRUB; after a restart the menu stays hidden, Esc
-shows it, and Windows still starts from F11; `UDISKS_IGNORE=1` on the Windows
+shows it, and Windows still starts from F11; `UDISKS_IGNORE=1` on each Windows
 disk and its partitions, and *Files* no longer lists them.
 
 ### 14. Updates without automatic reboots
@@ -791,6 +920,11 @@ sudo unattended-upgrades --dry-run --debug 2>&1 | tail -n 20
 
 The desktop's *Software Updater* still offers these updates. Installing them from
 there during a run has the same effect, so install them between runs.
+
+If an update ever asks on which EFI system partitions to install GRUB, select
+only the line that shows `/boot/efi`: the Ubuntu SSD's, about 1 GiB. Never
+select one of about 200 MB with no path after its size: that is the Windows
+disk's, and GRUB would be written onto the Windows disk.
 
 **Check:** `apt-config dump` lists the five entries, and the dry run ends
 without errors.
@@ -843,13 +977,14 @@ third-party UEFI CA on 27 June), and *Windows Production PCA 2011* expires on
 rotation post (references) explains what it means for Ubuntu.
 
 On this machine **only Windows changes the firmware's Secure Boot variables**
-(db, KEK and the revocation list, dbx), and Windows Update handles BitLocker
-while doing so. The same changes made from Ubuntu alter what BitLocker measures
-outside Windows, and can end on the recovery screen.
+(db, KEK and the revocation list, dbx), and Windows Update handles BitLocker, if
+it is on, while doing so. The same changes made from Ubuntu alter what BitLocker
+measures outside Windows, and can end on the recovery screen.
 
 Ubuntu Desktop installs one service that writes them by itself: secureboot-db
-runs at every start and adds the revocations it ships to dbx. Its first runs fell
-inside the BitLocker suspension, so they are harmless; from now on it stays off:
+runs at every start and adds the revocations it ships to dbx. Its first runs
+happened before BitLocker, if any, was back on, so they are harmless; from now
+on it stays off:
 
 ```bash
 systemctl is-enabled secureboot-db.service   # read-only: enabled
@@ -936,11 +1071,16 @@ sudo ubuntu-drivers install nvidia:580-open
 
 If, during the install, a screen asks you to choose a password to configure
 Secure Boot, the driver fell back to DKMS: there were no precompiled modules for
-your exact kernel. That path works with one more step. Choose a password; at the
-next start, in the blue MOK management screen, choose *Enroll MOK* →
-*Continue* → *Yes*, type the password, and reboot. The full upgrade of section
-14 usually avoids this, because the precompiled modules are published for the
-current kernel.
+your exact kernel. That path works with one more step. Choose a password of 8
+to 16 characters, lowercase letters and digits only: the blue screen where you
+type it again reads the keyboard as US English, like GRUB. At the next start
+that blue MOK management screen counts down from 10 seconds: press a key before
+it ends, then choose *Enroll MOK* → *Continue* → *Yes*, type the password, and
+reboot. If you miss
+it, the key is not enrolled and the driver does not load: run
+`sudo update-secureboot-policy --enroll-key`, choose the password again, and
+restart. The full upgrade of section 14 usually avoids all this, because the
+precompiled modules are published for the current kernel.
 
 Before restarting, see which path was taken:
 
@@ -949,7 +1089,8 @@ dpkg -l | grep -E '^ii +(linux-modules-nvidia|nvidia-dkms)'   # expected: linux-
 sudo reboot
 ```
 
-After the restart:
+If the desktop does not appear after the restart, or the login screen returns
+after you log in, see *If something goes wrong*. After the restart:
 
 ```bash
 cat /proc/driver/nvidia/version     # NVIDIA UNIX Open Kernel Module for x86_64  580.…
@@ -1010,8 +1151,9 @@ findmnt -n -o SOURCE /                          # the SSD
    the `ubuntu` entry is still there. Some firmware deletes the entries of disks
    it no longer finds.
 
-**Check B:** Windows starts by itself, with no recovery screen. BitLocker is
-still suspended; the real test comes at the end of this section.
+**Check B:** Windows starts by itself, with no recovery screen. If Windows is
+encrypted, BitLocker is still suspended; the real test comes at the end of this
+section.
 
 #### Case C: SSD reconnected, both entries
 
@@ -1039,7 +1181,13 @@ sudo efibootmgr                   # BootOrder now starts with XXXX
 **Check C:** both entries exist, and a cold start with the SSD connected lands
 in Ubuntu.
 
+From now on, while the SSD is connected, a restart of Windows lands in Ubuntu,
+including the restarts Windows Update needs to finish: when Windows restarts,
+choose *Windows Boot Manager* in the F11 menu.
+
 #### BitLocker back on
+
+Skip this part if Windows is not encrypted (section 2).
 
 1. Start Windows from the boot menu (F11 → *Windows Boot Manager*), with the SSD
    connected.
@@ -1169,6 +1317,11 @@ gains.
   Windows. Reconnect the SSD with the PC off.
 - nnU-Net saves a checkpoint every 50 epochs and resumes with `--c`, so a lost
   root filesystem costs at most the epochs since the last checkpoint.
+- If the enclosure disconnects anyway: hold the power button until the PC turns
+  off, reconnect the cable with the PC off, and start it. ext4 recovers from its
+  journal. If the start stops at an `(initramfs)` prompt that asks for a manual
+  check, type `fsck -y` and the device it names, then `exit`. Count the event
+  against criterion 1 of section 27.
 
 **Check:** you know these rules, and the stability check has run on every boot so
 far.
@@ -1343,7 +1496,7 @@ training.
 
 nnU-Net needs three folders: `nnUNet_raw`, `nnUNet_preprocessed` and
 `nnUNet_results`. They go on the Linux filesystem (ext4 on the Ubuntu SSD), never
-on the Windows disk: NTFS through Linux is slow, and that volume is encrypted
+on a Windows disk: NTFS through Linux is slow, and section 13 hides those disks
 anyway. During the trial everything lives on the USB4 SSD. Preprocessed data is
 read at every training iteration, so it is the part that gains most from fast
 storage. The paths below serve this test only and are set per terminal session;
@@ -1719,16 +1872,17 @@ options for Ubuntu*, and start the previous kernel.
 
 Firmware (BIOS) updates:
 
-1. In Windows: `manage-bde -protectors -disable C: -RebootCount 0`. ASRock notes
-   that a BIOS update can bring up the BitLocker recovery screen.
+1. If Windows is encrypted, in Windows:
+   `manage-bde -protectors -disable C: -RebootCount 0`. ASRock notes that a
+   BIOS update can bring up the BitLocker recovery screen.
 2. Update with *Instant Flash*, then apply section 6 again: an update can reset
-   settings and boot entries. The Ubuntu SSD still starts through its fallback
-   loader if its entry is gone (section 20, case C).
-3. Start Windows from the boot menu, run `manage-bde -protectors -enable C:`, and
-   restart once.
+   settings, boot entries and the Secure Boot keys. The Ubuntu SSD still starts
+   through its fallback loader if its entry is gone (section 20, case C).
+3. Start Windows from the boot menu; if it is encrypted, run
+   `manage-bde -protectors -enable C:` and restart once.
 
 **Check:** after each round of maintenance, both GPUs are listed, the smoke test
-passes, and BitLocker protection is on.
+passes, and, if Windows is encrypted, BitLocker protection is on.
 
 ### 31. Move the SSD inside (only if section 27 says so)
 
@@ -1737,8 +1891,9 @@ Before opening the PC:
 1. The checks of section 21 under *Ready to move inside?* pass. If the logical
    sector size did not match, plan to reinstall from section 7 once the SSD is in
    its slot.
-2. In Windows: `manage-bde -protectors -disable C: -RebootCount 0`. Taking the
-   GPUs out and putting them back is a planned hardware change.
+2. If Windows is encrypted, in Windows:
+   `manage-bde -protectors -disable C: -RebootCount 0`. Taking the GPUs out and
+   putting them back is a planned hardware change.
 3. Note which slot each GPU is in and which power cables it uses: they go back
    the same way.
 
@@ -1748,8 +1903,10 @@ The move:
    enclosure and install it in a free slot among M2_2, M2_3 and M2_4 (PCIe Gen4
    x4, from the chipset). ASRock lists no lane sharing between these slots and
    the GPU slots, which stay at x8 each. Follow the board manual for the slot's
-   screw and heatsink. The Windows disk stays where it is.
-5. Put the GPUs back in their slots, with their cables.
+   screw and heatsink. The Windows disks stay where they are.
+5. Put the GPUs back in their slots, with their cables. Push the RTX 5080's
+   12V-2x6 power plug fully home, until its latch clicks: a plug left partly
+   seated can overheat.
 
 First start:
 
@@ -1760,16 +1917,16 @@ First start:
 ```bash
 findmnt -n -o SOURCE /                              # /dev/nvme…: the SSD, now in its slot
 lsblk -o NAME,SIZE,MODEL,SERIAL,TRAN,MOUNTPOINTS    # TRAN nvme
-grep GRUB_CMDLINE_LINUX_DEFAULT /etc/default/grub   # still carries the trial's USB4 parameters
+cat /etc/default/grub.d/99-usb4-trial.cfg           # the trial's USB4 parameters (section 12), and nothing else
 ```
 
 8. Remove the trial's USB4 parameters; they would change how any USB4 device
    behaves from now on:
 
 ```bash
-sudo sed -i -e 's/ *thunderbolt\.host_reset=0//g' -e 's/ *systemd\.mask=bolt\.service//g' /etc/default/grub
-grep GRUB_CMDLINE_LINUX_DEFAULT /etc/default/grub   # without them, typically "quiet splash"
+sudo rm /etc/default/grub.d/99-usb4-trial.cfg
 sudo update-grub
+grep -c 'thunderbolt.host_reset' /boot/grub/grub.cfg   # 0
 sudo reboot
 ```
 
@@ -1777,15 +1934,85 @@ sudo reboot
    the SSD, Secure Boot on, and `/proc/cmdline` without the trial's parameters.
    Then `nvidia-smi -L`: the GPUs' indexes may change with the new bus layout,
    their UUIDs do not. If the trial ran in mode U, `boltctl list` works again.
-10. Start Windows from the boot menu, run `manage-bde -protectors -enable C:`, and
-    restart once: no recovery screen.
-11. Repeat the benchmarks of section 26 and the `fio` runs of section 21, and
+10. GRUB's updates write to the EFI partition named when Ubuntu was installed.
+    In mode U that name usually belonged to the USB bridge and no longer
+    exists, so the next GRUB or shim update would fail with *special device …
+    does not exist*. Read-only first:
+
+```bash
+sudo debconf-show grub-pc | grep install_devices    # the path GRUB updates install to
+ls -l <that path>                                   # "No such file or directory": the name is stale
+findmnt -n -o SOURCE /boot/efi                      # the SSD's EFI partition now, for example /dev/nvme2n1p1
+ls -l /dev/disk/by-id/ | grep "/$(basename "$(findmnt -n -o SOURCE /boot/efi)")$"   # its stable names
+```
+
+If the path no longer exists, point it at one of the SSD's stable names from
+the last command (an `nvme-…-part1` name), never at a Windows disk:
+
+```bash
+echo 'set grub-efi/install_devices /dev/disk/by-id/<nvme-…-part1>' | sudo debconf-communicate grub-pc
+sudo debconf-show grub-pc | grep install_devices    # the new name
+sudo apt install --reinstall grub-efi-amd64-signed  # the update that would have failed: no error
+```
+
+11. Start Windows from the boot menu; if it is encrypted, run
+    `manage-bde -protectors -enable C:` and restart once: no recovery screen.
+12. Repeat the benchmarks of section 26 and the `fio` runs of section 21, and
     compare them with the trial's numbers.
-12. Update this guide's status line and the decision record of section 27.
+13. Update this guide's status line and the decision record of section 27.
 
 **Check:** Ubuntu starts from the internal slot with the default kernel
-parameters, Windows starts from the boot menu with BitLocker on, and the new
-numbers are recorded.
+parameters, Windows starts from the boot menu (with BitLocker on, if it is
+encrypted), and the new numbers are recorded.
+
+## If something goes wrong
+
+Ubuntu never writes to the Windows disks. Before *Install* in section 10, only
+Windows' own files and settings, the stick and the firmware change. Find what
+you see below and do what the last column says. If that does not fix it, stop
+there and write down what you saw.
+
+| Section | What you see | What to do |
+|---|---|---|
+| 4 | The hash or the signature does not match | Delete the three files and download them again. Never write a stick from an image that failed either check. |
+| 4 | `gpg --recv-keys` hangs or fails | Use `hkps://` instead of `hkp://`: the network blocks the keyserver's port. |
+| 6 | After saving, the screen stays black | Wait a minute or more: the board can be retraining its memory. Then try the board's HDMI port, and last, the Clear CMOS button (section 6). |
+| 6 | Windows does not start after enabling Secure Boot | Set *Secure Boot* back to Disabled: Windows starts as before. |
+| 6, 7 | The stick is missing from the F11 menu | Check that *Fast Boot* and *CSM* are Disabled, try a rear USB-A port, or write the stick again (section 5). |
+| 6, 7 | *Secure Boot Violation* or *Invalid signature* when starting the stick | The firmware's db lacks Microsoft's 2011 UEFI CA: last paragraphs of section 6. |
+| 7 | A black screen after choosing *Try or Install Ubuntu* | Restart and choose the entry with *safe graphics* in its name. |
+| 7 | The live system stops at a text prompt because it cannot find its medium | Write the stick again, choosing Rufus's *DD Image* mode. |
+| 8, 9 | `/proc/cmdline` lacks a parameter or shows a typo, or `host_reset` is not N | Restart and type the parameters again. |
+| 8, 9 | The SSD disappears or appears again | Section 8 decides the mode; if no mode holds, section 27. |
+| 10 | The installer says the SSD is in use | Unmount the SSD's old volume in *Files* (its eject icon), then go back one screen. |
+| 10 | The installer crashes or freezes, the power fails, or *Restart now* was pressed | The Windows disks were not written, but the fingerprints of section 9 are lost. Start Windows from F11 to confirm that it works, then repeat from section 9: the new install replaces the broken one and its boot entry. |
+| 11 | A Windows fingerprint differs | **STOP**, as section 11 says. |
+| 12 | A black screen at the first start | Restart; in the GRUB menu (Esc while the PC starts, if it does not show) press `e` on the Ubuntu entry and add `nomodeset` along with your mode's parameters. Add it at each start until section 18 installs the driver. |
+| 12 | A `grub>` prompt instead of the menu | Type `normal` and press Enter. |
+| 12 | An `(initramfs)` prompt | The mode's parameters were probably missing: turn the PC off and start again, typing them (section 12). If it asks for a manual check, type `fsck -y` and the device it names, then `exit`. |
+| 12 | No network | Check the cable, and that `uname -r` shows the 7.0 kernel. `nmcli device` should list the wired interface; if it does not, `sudo dmesg` should mention its driver, `r8169`. |
+| 18 | The desktop does not appear after the driver, or the login screen returns | Restart, press Esc while the PC starts to show the GRUB menu, press `e` on the Ubuntu entry and add `module_blacklist=nvidia,nvidia_drm,nvidia_modeset,nvidia_uvm`: Ubuntu starts with the basic display driver. **STOP** and keep the output of `journalctl -b -1 -p err`. To return to the state before the driver: `sudo apt purge '?installed ?name(^nvidia-)' '?installed ?name(^libnvidia-)' '?installed ?name(^linux-modules-nvidia-)' '?installed ?name(^xserver-xorg-video-nvidia-)'`, then restart. If apt's list of packages to remove names `linux-firmware`, `linux-image` or `linux-generic`, answer n. |
+| 18 | The blue MOK screen went by without a key press | `sudo update-secureboot-policy --enroll-key`, choose the password again, restart, and press a key when the blue screen appears. |
+| 17, 19 | Only one GPU | **STOP**: its seating and its power cables. |
+| 20 | *Windows Boot Manager* is missing from the F11 menu | Choose the entry with the Windows disk's model: the firmware starts Windows' own fallback loader. |
+| 20 | Windows offers to format a disk | Always *Cancel*: it is the Ubuntu SSD, which Windows cannot read. |
+| 20 | A Windows restart lands in Ubuntu | Restart and choose *Windows Boot Manager* in the F11 menu. |
+| 21 | The enclosure disconnects while Ubuntu runs | Section 21, last rule: power off, reconnect with the PC off, start again. |
+| 14, 30 | An update asks where to install GRUB | Select only the line that shows `/boot/efi` (the Ubuntu SSD's EFI partition, about 1 GiB), never one of about 200 MB (the Windows disk's). |
+| 31 | An update fails with *special device … does not exist* | Section 31, step 10. |
+
+### Going back to Windows only
+
+At any point: shut down, unplug the enclosure and power on. Windows starts by
+itself, as in case B of section 20, with its disks as they were. The settings of
+sections 3 and 6 can stay. The `ubuntu` entry left in the firmware is harmless:
+the firmware skips it while the SSD is unplugged. If you remove it anyway, list
+the entries in an administrator PowerShell with `bcdedit /enum firmware` and
+delete only the one whose description is `ubuntu`, with
+`bcdedit /delete '<identifier>'`: paste the identifier exactly as bcdedit prints
+it, braces included, inside the single quotes, which PowerShell needs around
+braces. Never delete `{bootmgr}`. To reuse the SSD in Windows, format only the
+disk with the SSD's size.
 
 ## Next
 
@@ -1807,8 +2034,13 @@ Ubuntu and Canonical:
   https://ubuntu.com/tutorials/create-a-usb-stick-on-windows
 - Desktop installer source, 24.04 branch (screen labels and page order):
   https://github.com/canonical/ubuntu-desktop-provision/tree/ubuntu/24.04
-- curtin, carry-over of kernel parameters after `---`:
+- curtin writes carried-over kernel parameters only when
+  `replace_linux_default` is on:
   https://github.com/canonical/curtin/blob/master/curtin/commands/install_grub.py
+- The 24.04 installer turns it off for Ubuntu Desktop (`replace_linux_default`):
+  https://github.com/canonical/subiquity/blob/ubuntu/noble/subiquity/models/subiquity.py
+- A GRUB update failing on a stale EFI install device (*special device … does
+  not exist*): https://discourse.ubuntu.com/t/problem-during-grub-upgrade/61643
 - *Microsoft UEFI CA rotation: What it means for Ubuntu users and vendors*:
   https://discourse.ubuntu.com/t/microsoft-uefi-ca-rotation-what-it-means-for-ubuntu-users-and-vendors/82652
 - Secure Boot in Ubuntu:
@@ -1822,6 +2054,8 @@ Ubuntu and Canonical:
 
 Microsoft:
 
+- *BitLocker overview* (device encryption, and `PreventDeviceEncryption`):
+  https://learn.microsoft.com/en-us/windows/security/operating-system-security/data-protection/bitlocker/
 - *BitLocker recovery overview*:
   https://learn.microsoft.com/en-us/windows/security/operating-system-security/data-protection/bitlocker/recovery-overview
 - *BitLocker FAQ*:
@@ -1851,6 +2085,8 @@ NVIDIA, PyTorch, uv and nnU-Net:
 Linux:
 
 - USB4 and Thunderbolt: https://docs.kernel.org/admin-guide/thunderbolt.html
+- Kernel parameters (`module_blacklist=`, `nomodeset`):
+  https://docs.kernel.org/admin-guide/kernel-parameters.html
 - `boltctl`: https://gitlab.freedesktop.org/bolt/bolt/-/blob/master/docs/boltctl.1.txt
 - Kernel command line understood by systemd (`systemd.mask=`):
   https://www.freedesktop.org/software/systemd/man/latest/kernel-command-line.html
