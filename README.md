@@ -17,7 +17,7 @@ tokens. Each host keeps those outside git.
 
 | Role | What it does | Designed on |
 |---|---|---|
-| GPU workstation | Training and evaluation, also used at its own screen. Ubuntu Desktop by default on its own disk (trialled over USB4 first), Windows on another disk | Ryzen 9 7900X, 64 GB, RTX 5080 16 GB and RTX 4070 12 GB |
+| GPU workstation | Training and evaluation, also used at its own screen. Ubuntu Desktop by default on its own internal SSD, Windows on its own disks | Ryzen 9 7900X, 64 GB, RTX 5080 16 GB and RTX 4070 12 GB |
 | Service host | Always-on services: code hosting and CI, notifications, experiment tracking | Ryzen 3 4300U, 16 GB, 512 GB SSD |
 
 Liveness is the one thing watched from outside, because it has to keep working
@@ -43,7 +43,8 @@ when the house loses power
 | Guide | Host | Status |
 |---|---|---|
 | [Install Ubuntu Server on a single-OS host](docs/guides/install-ubuntu-server.md) | Service host | Written; first run pending |
-| [Install Ubuntu Desktop on the GPU workstation](docs/guides/install-ubuntu-gpu-workstation.md) | GPU workstation | Written; first run pending |
+| [Install Ubuntu Desktop on the GPU workstation](docs/guides/install-ubuntu-gpu-workstation.md) | GPU workstation | First run on 2026-10-21, sections 1 to 20 |
+| [Validate the GPU workstation before it trains for real](docs/guides/validate-gpu-workstation.md) | GPU workstation | Written; first run pending |
 
 Planned: Tailscale, Docker, ntfy, liveness checks, Forgejo and its runner,
 experiment tracking, operating long runs, and backups.
