@@ -7,6 +7,11 @@ its own screen. It supersedes
 [ADR-002](ADR-002-ubuntu-server-not-desktop-on-every-host.md) for the GPU
 workstation; ADR-002 still holds for the service host.
 
+Its USB4 trial was superseded by
+[ADR-010](ADR-010-the-ubuntu-ssd-goes-inside-the-workstation.md) on 2026-10-21:
+the enclosure disconnected during the install, and the SSD went into M2_1
+without the trial. The rest of this record stands.
+
 ## Context
 
 The workstation is used at its own monitor and keyboard as well as for long

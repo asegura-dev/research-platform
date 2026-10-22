@@ -76,8 +76,16 @@ certificates. Accepted when the host survives a real power cut.
 
 Desktop with the HWE kernel, because the machine is used at its own screen and
 the GA kernel has no driver for its network chip. Its own SSD and EFI system
-partition; Windows starts only from the firmware's boot menu. The SSD moves
-inside only if a trial over USB4 passes.
+partition; Windows starts only from the firmware's boot menu. Its USB4 trial is
+superseded by ADR-010.
+
+### 010 - The workstation's Ubuntu SSD goes inside, in M2_1, without the USB4 trial
+
+[`ADR-010-the-ubuntu-ssd-goes-inside-the-workstation.md`](ADR-010-the-ubuntu-ssd-goes-inside-the-workstation.md)
+
+The USB4 enclosure disconnected in Windows and in the middle of the install.
+M2_1 because it is on the CPU's lanes; the Windows data disk moved to a chipset
+slot.
 
 ## Open decisions
 
@@ -87,8 +95,7 @@ is handled during an install) are recorded in that guide's decisions table.
 
 | Decision | Where it is decided |
 |---|---|
-| Whether the workstation's Ubuntu disk moves to an internal slot | Workstation guide, section 27, at the end of the trial |
-| Role of the RTX 4070: second training GPU, or local inference (Ollama) | Workstation guide, section 26, repeated with the real dataset |
+| Role of the RTX 4070: second training GPU, or local inference (Ollama) | Validation guide, sections 7 and 9, repeated with the real dataset |
 | Switching to Windows remotely | Tailscale guide |
 | Experiment tracker: MLflow or Aim | Tracker guide |
 | A copy of irreplaceable data away from home | Backups guide |
