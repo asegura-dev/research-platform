@@ -1088,7 +1088,8 @@ nvidia-smi --query-gpu=index,name,uuid,pci.bus_id,memory.total,memory.used,drive
 `nvidia-smi` numbers GPUs by PCI bus; CUDA programs number them fastest first
 unless told otherwise (`CUDA_DEVICE_ORDER`). The two numberings can disagree,
 so the guides select GPUs by UUID: write down `<uuid-5080>` and `<uuid-4070>`
-in your private note.
+in your private note. The validation guide also writes them into its own
+`env.sh` (its section 6), so that its commands carry none.
 
 With the monitor on the RTX 5080, the desktop uses part of its memory. Note
 `memory.used` on each GPU at idle, with nothing else running: that is what the
@@ -1211,11 +1212,18 @@ Desktop does not install an SSH server.
 sudo apt install openssh-server
 systemctl status ssh.socket --no-pager     # active (listening): sshd starts at the first connection
 ssh-import-id gh:<github-user>             # your public keys from GitHub into ~/.ssh/authorized_keys
+for k in /etc/ssh/ssh_host_*_key.pub; do ssh-keygen -lf "$k"; done   # this machine's host key fingerprints
 ```
 
-From the laptop, `ssh <user>@<lan-ip>` must log in with the key. Then refuse
-passwords. Read-only first: for each setting `sshd` keeps the first value it
-reads, and it reads the files in `/etc/ssh/sshd_config.d/` in name order:
+Write the fingerprints, with their types, in your private note: a computer
+connecting for the first time compares one of them. From another computer,
+`ssh <user>@<lan-ip>` must log in with the key; how to give a computer its key,
+and what the first connection asks, is in
+[appendix A of the server guide](install-ubuntu-server.md#appendix-a-connect-from-another-computer).
+
+Then refuse passwords. Read-only first: for each setting `sshd` keeps the first
+value it reads, and it reads the files in `/etc/ssh/sshd_config.d/` in name
+order:
 
 ```bash
 sudo sshd -T | grep -i '^passwordauthentication'    # effective value
@@ -1228,7 +1236,7 @@ sudo sshd -t && sudo systemctl restart ssh
 sudo sshd -T | grep -i '^passwordauthentication'    # passwordauthentication no
 ```
 
-From the laptop:
+From the other computer:
 
 ```bash
 ssh -o PubkeyAuthentication=no -o PreferredAuthentications=password <user>@<lan-ip>

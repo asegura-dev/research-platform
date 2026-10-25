@@ -4,6 +4,12 @@
 
 Accepted on 2026-10-09, while writing the service host's install guide.
 
+Its acceptance test, a real power cut, passed on the service host in October
+2026. On 2026-10-25,
+[ADR-011](ADR-011-the-service-host-runs-without-secure-boot.md) superseded its
+Secure Boot point for that host, whose firmware offers only a test platform
+key and the 2011 certificates. The rest of this record stands.
+
 ## Context
 
 The mini PC runs unattended. After a power cut, a kernel update or a hang, it
