@@ -3,10 +3,17 @@
 > **Scope:** the GPU workstation once
 > [install-ubuntu-gpu-workstation.md](install-ubuntu-gpu-workstation.md) is done:
 > Ubuntu Desktop on its internal SSD, the 580 driver loaded, both GPUs visible.
-> Nothing here changes the installation; the only changes are packages, files
-> under `~/bench`, and GPU power limits that last until the next restart.
+> Nothing here changes the installation. The only changes are packages; uv,
+> whose installer puts it in `~/.local/bin`, adds that folder to the shell's
+> startup files, and keeps its cache in `~/.cache`; files under `~/bench`; and
+> GPU power limits that last until the next restart.
 
-> **Status:** written on 2026-10-21; not yet run end to end.
+> **Status:** run on 2026-10-22, sections 1 to 9 and 11. Section 10 waits for a
+> plug-in energy meter. That run's memory stress covered 5 GiB, not 40, because
+> of how Ubuntu 24.04's stress-ng counts `--vm-bytes`; section 3 now asks for
+> 40 GiB in total. Revised from that run on 2026-10-23: the summary script, the
+> order of the windows in each run, the power sweep, the extra runs that keep
+> the RTX 5080 busy in section 9, and the log searches.
 
 This guide answers four questions before any project depends on the machine:
 
@@ -21,15 +28,22 @@ This guide answers four questions before any project depends on the machine:
 How to follow it:
 
 - Run the sections in order; each ends with a **Check:**.
-- Keep the results in the results sheet at the end, copied into your private
-  note. The tools print identifiers that never enter this repository: GPU UUIDs,
+- Copy the results sheet (section 12) into your private note and fill it as you
+  go. The tools print identifiers that never enter this repository: GPU UUIDs,
   serial numbers, and the hostname, which nnU-Net writes into its benchmark
-  files.
+  files. The appendix prints them all at once, for the note.
+- Commands carry no identifiers to replace. Section 6 writes each GPU's
+  identifier into `~/bench/nnunet/env.sh`, and section 4 finds the Ubuntu SSD
+  from the root filesystem. The only values you type are the power limits of
+  section 8.
 - Measure on a quiet machine: no downloads, no video in the browser, no other
   training.
-- Placeholders: `<uuid-5080>` and `<uuid-4070>` come from `nvidia-smi -L`;
-  `<ubuntu-eui>` is the Ubuntu SSD's `nvme-eui.` identifier (install guide,
-  sections 8 and 9).
+- Runs go inside tmux (section 7), so that closing a terminal does not stop
+  them.
+- Before pasting a block that has `sudo` after its first line, run `sudo -v`
+  alone and type your password. Ubuntu's terminal shows a pasted block
+  highlighted and runs it when you press Enter, but terminals that run each
+  line as it arrives let a password prompt take the lines that follow it.
 
 ### 1. Tools and folders
 
@@ -60,11 +74,21 @@ nvidia-smi --query-gpu=name,driver_version,vbios_version,pci.bus_id,memory.total
 nvidia-smi -q | grep -A3 'BAR1 Memory Usage'
 ```
 
+How the CPU picks its clocks:
+
+```bash
+cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_driver                 # amd-pstate-epp
+cat /sys/devices/system/cpu/amd_pstate/status                           # active
+cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor               # powersave
+cat /sys/devices/system/cpu/cpu0/cpufreq/energy_performance_preference  # balance_performance
+powerprofilesctl get                                                    # balanced
+```
+
 Then leave the machine idle for ten minutes, with only a terminal open, and read
 the idle state:
 
 ```bash
-sensors
+sensors 2>/dev/null
 nvidia-smi --query-gpu=name,temperature.gpu,power.draw,memory.used,pstate --format=csv
 ```
 
@@ -73,10 +97,18 @@ How to read it:
 - *Configured Memory Speed* of 6000 MT/s or similar means the memory runs its
   EXPO profile; 4800 to 5600 MT/s means the JEDEC defaults. EXPO is the most
   frequent cause of memory errors, which makes section 3 matter more.
+- With the `amd-pstate-epp` driver in `active` mode, the CPU chooses its own
+  clocks, and the `powersave` governor does not hold it back: the *energy
+  performance preference* (EPP) sets the bias, and the power profile sets the
+  EPP. On this machine, `balanced` showed `balance_performance`, and the cores
+  still boosted above 5 GHz under load (`grep MHz /proc/cpuinfo` while section
+  3 runs).
 - The *BAR1 Memory Usage* total of each GPU close to its memory size means
   Resizable BAR is on.
-- In `sensors`, `k10temp` reports the CPU (`Tctl`) and the `nvme` entry the SSD
-  (`Composite`).
+- In `sensors`, `k10temp` reports the CPU (`Tctl`), each `spd5118` entry one
+  memory module, and each `nvme` entry an SSD (`Composite`). `2>/dev/null`
+  hides the *I/O error* lines that some SSDs print for temperature thresholds
+  they do not report.
 - At idle the RTX 5080 holds some memory for the desktop, which runs on it; the
   RTX 4070 should hold almost none.
 
@@ -87,7 +119,7 @@ How to read it:
 Watch the temperatures in a second terminal while the tests run:
 
 ```bash
-watch -n 5 sensors
+watch -n 5 'sensors 2>/dev/null'
 ```
 
 The CPU, 30 minutes on all 24 threads, verifying every result:
@@ -102,16 +134,24 @@ read back. 40 of the 64 GiB leaves room for the desktop, so neither swap nor
 systemd-oomd takes part:
 
 ```bash
-stress-ng --vm 8 --vm-bytes 5g --vm-method all --verify --timeout 60m --metrics-brief 2>&1 | tee stress-vm.log
+stress-ng --vm 8 --vm-bytes 40g --vm-method all --verify --timeout 60m --metrics-brief 2>&1 | tee stress-vm.log
 ```
+
+`--vm-bytes` is the total for all the workers: the stress-ng of Ubuntu 24.04
+(0.17) divides it among them, although its manual says "per vm worker". While
+it runs, `free -h` in another terminal shows about 40 GiB more in use.
 
 Afterwards:
 
 ```bash
-grep -E 'failed|successful run' ~/bench/logs/stress-*.log         # failed: 0, and successful run completed, in both
-journalctl -k -b | grep -iE 'mce|machine check|hardware error'     # nothing
-journalctl -u systemd-oomd -b --no-pager | grep -i kill           # nothing
+grep -E 'failed|successful run' ~/bench/logs/stress-*.log                  # failed: 0, and successful run completed, in both
+journalctl -k -b | grep -iE 'machine check|hardware error'                 # nothing
+journalctl -u systemd-oomd -b --no-pager | grep -i killed                  # nothing
 ```
+
+The searches are that precise on purpose: every start logs
+`MCE: In-kernel MCE decoding enabled.`, and systemd-oomd introduces itself as
+the *Out-Of-Memory (OOM) Killer*; neither is an error.
 
 AMD lists 95 °C as the Ryzen 9 7900X's maximum operating temperature, and under
 an all-core load the CPU boosts until it reaches it: a `Tctl` of 95 °C is
@@ -130,15 +170,20 @@ test the memory again without EXPO before blaming anything else.
 
 ### 4. The Ubuntu SSD
 
-Identify it by its identifier, not by its name, which can change between starts:
+The disk that holds the root filesystem is the Ubuntu SSD. Its name
+(`/dev/nvme…n1`) can change between starts, so `U` is found again each time:
 
 ```bash
-U=$(readlink -f /dev/disk/by-id/nvme-eui.<ubuntu-eui>); echo "$U"        # /dev/nvme…n1
-findmnt -n -o SOURCE /                                                    # a partition of that disk
+U=$(lsblk -lnso NAME,TYPE "$(findmnt -n -o SOURCE /)" | awk '$2 == "disk" { print "/dev/" $1 }'); echo "$U"
+lsblk -d -o NAME,SIZE,MODEL "$U"          # the Ubuntu SSD's model and size
 sudo smartctl -a "$U" | grep -E 'Model Number|Firmware Version|Critical Warning|Temperature:|Available Spare:|Percentage Used|Data Units Written|Media and Data Integrity Errors|Unsafe Shutdowns'
-lsblk --discard "$U"                     # DISC-GRAN and DISC-MAX other than 0: TRIM reaches the SSD
-systemctl is-enabled fstrim.timer        # enabled: Ubuntu trims once a week
+lsblk --discard "$U"                      # DISC-GRAN and DISC-MAX other than 0: TRIM reaches the SSD
+systemctl is-enabled fstrim.timer         # enabled: Ubuntu trims once a week
 ```
+
+*Unsafe Shutdowns* counts, over the SSD's whole life, the times it lost power
+without being told to shut down. Note it: after the next normal restart it must
+be the same (section 11 checks it).
 
 The PCIe link of every NVMe controller, by model:
 
@@ -163,8 +208,12 @@ fio --name=write2g --filename="$HOME/fio.tmp" --size=2G --rw=write --bs=1M \
 sudo smartctl -a "$U" | grep 'Temperature:'     # right after the runs
 ```
 
-**Check:** Gen4 x4; *Critical Warning* 0x00 and no media errors; the speeds and
-temperatures are in the results sheet.
+A 2 GiB write fits in the SSD's cache, so its speed is the cache's, not what a
+long write sustains.
+
+**Check:** the model and size are the Ubuntu SSD's; Gen4 x4; *Critical Warning*
+0x00 and no media errors; the speeds, the temperatures and *Unsafe Shutdowns*
+are in the results sheet.
 
 ### 5. GPUs, PCIe and power limits, read-only
 
@@ -243,7 +292,8 @@ EOF
 uv run python check_gpus.py
 ```
 
-The nnU-Net folders, kept apart from any project:
+The nnU-Net folders, kept apart from any project, and each GPU's identifier,
+written by `nvidia-smi` itself:
 
 ```bash
 cat > env.sh <<'EOF'
@@ -251,14 +301,21 @@ cat > env.sh <<'EOF'
 export nnUNet_raw="$HOME/bench/nnunet/data/raw"
 export nnUNet_preprocessed="$HOME/bench/nnunet/data/preprocessed"
 export nnUNet_results="$HOME/bench/nnunet/data/results"
-# nnU-Net's benchmark trainers accept only fold 0: each GPU writes to its own folder
+# nnU-Net's benchmark trainers accept only fold 0: each GPU writes to its own folder,
+# and each benchmark leaves its result in this file inside that folder
 export RESULTS_5080="$HOME/bench/nnunet/data/bench-5080"
 export RESULTS_4070="$HOME/bench/nnunet/data/bench-4070"
+export BENCH_JSON="Dataset009_Spleen/nnUNetTrainerBenchmark_5epochs__nnUNetResEncUNetMPlans__3d_fullres/fold_0/benchmark_result.json"
 # Data-augmentation processes per training: 8, plus 4 for validation
 export nnUNet_n_proc_DA=8
+# GPUs by UUID, so that no command depends on how the cards are numbered
 EOF
+nvidia-smi --query-gpu=name,uuid --format=csv,noheader | awk -F', ' '
+  /RTX 5080/ { print "export GPU_5080=" $2 }
+  /RTX 4070/ { print "export GPU_4070=" $2 }' >> env.sh
 source env.sh
 mkdir -p "$nnUNet_raw" "$nnUNet_preprocessed" "$nnUNet_results" "$RESULTS_5080" "$RESULTS_4070" download
+echo "RTX 5080: $GPU_5080"; echo "RTX 4070: $GPU_4070"
 ```
 
 The dataset is *Task09_Spleen* of the Medical Segmentation Decathlon: CT, like
@@ -295,10 +352,14 @@ suited for GPUs with 9 to 11 GB. Spleen downloads (1.5 GB) and
 preprocesses in minutes. Every nnU-Net epoch is 250 training iterations, so its
 duration depends on the patch, the batch and the network, not on how many cases
 the dataset has. Repeat sections 7 to 9 with the thesis dataset once it is
-converted: two input channels change the plan.
+converted: two input channels change the plan, and `BENCH_JSON` changes with the
+dataset's name.
 
-**Check:** `check_gpus.py` prints `ok` for both GPUs; the MD5 matches; the plan
-prints a patch and a batch.
+**Check:** `check_gpus.py` prints `ok` for both GPUs; each GPU's line prints a
+`GPU-…` identifier, never an empty value; the MD5 matches; the plan prints a
+patch and a batch. If a GPU's line is empty, the card is missing or its name
+did not match the pattern: fix that before going on, because every command of
+sections 7 to 11 depends on it.
 
 ### 7. nnU-Net benchmark, each GPU alone
 
@@ -324,71 +385,87 @@ EOF
 chmod +x ~/bench/monitor.sh
 ```
 
-The second summarizes a run. It leaves out the first two minutes of each GPU's
-log, where `torch.compile` and the first epoch run, and the samples in which a
-GPU did nothing:
+The second summarizes a run. It counts only the samples in which a GPU is at
+least 50% busy: the RTX 5080 also draws the desktop, and its idle samples would
+dilute the averages. Peaks (memory, temperature, PCIe link) come from every busy
+sample, because memory peaks in epoch 0, while `torch.compile` tunes its
+kernels. Means (utilization, power) and the clock event reasons leave out the
+first 120 busy samples, the warm-up:
 
 ```bash
 cat > ~/bench/summary.sh <<'EOF'
 #!/usr/bin/env bash
-# Usage: ~/bench/summary.sh <run-name> [seconds of warm-up to leave out, default 120]
+# Usage: ~/bench/summary.sh <run-name> [busy seconds of warm-up to leave out, default 120]
+# Only samples in which a GPU is at least 50% busy count. Peaks (memory, temperature,
+# PCIe link) come from all of them; means and clock event reasons skip the warm-up.
 set -u
 cd ~/bench/logs
 awk -F', ' -v skip="${2:-120}" '
-  { n[$2]++ }
-  n[$2] > skip && $3 > 0 {
-    k[$2]++; u[$2] += $3; p[$2] += $6
+  $3 + 0 >= 50 {
+    n[$2]++
     if ($4 + 0 > m[$2]) m[$2] = $4 + 0
     if ($5 + 0 > t[$2]) t[$2] = $5 + 0
     if ($9 + 0 > gen[$2]) gen[$2] = $9 + 0
-    if ($10 + 0 > w[$2]) w[$2] = $10 + 0
-    seen[$2, $11] = 1 }
+    if ($10 + 0 > w[$2]) w[$2] = $10 + 0 }
+  $3 + 0 >= 50 && n[$2] > skip {
+    k[$2]++; u[$2] += $3; p[$2] += $6
+    seen[$2, $11]++ }
   END {
     for (g in k) {
-      printf "%s: utilization %.0f%%, power %.0f W, peak memory %d MiB, peak %d C, PCIe Gen%d x%d\n",
-             g, u[g] / k[g], p[g] / k[g], m[g], t[g], gen[g], w[g]
-      for (s in seen) { split(s, a, SUBSEP); if (a[1] == g) print "  clock event reasons seen: " a[2] } } }' "gpu-$1.csv"
+      printf "%s: %d busy samples, utilization %.0f%%, power %.0f W, peak memory %d MiB, peak %d C, PCIe Gen%d x%d\n",
+             g, k[g], u[g] / k[g], p[g] / k[g], m[g], t[g], gen[g], w[g]
+      for (s in seen) { split(s, a, SUBSEP); if (a[1] == g) printf "  clock event reasons %s in %d samples\n", a[2], seen[s] } } }' "gpu-$1.csv"
 T=$(awk '/^MemTotal/ { print $2 }' /proc/meminfo)
 awk -v T="$T" 'NR > 3 && $1 ~ /^[0-9]+$/ {
-    n++; idle += $15; used = T - $4 - $5 - $6
-    if (used > mx) mx = used; if ($1 > r) r = $1 }
-  END { if (n) printf "CPU busy %.0f%%, peak memory in use %.1f GiB, peak run queue %d (24 threads)\n",
-                      100 - idle / n, mx / 1048576, r }' "vmstat-$1.log"
+    busy = 100 - $15; used = T - $4 - $5 - $6
+    if (busy > cb) cb = busy; if (used > mx) mx = used; if ($1 > rq) rq = $1 }
+  END { printf "CPU: peak busy %d%%, peak memory in use %.1f GiB, peak run queue %d (24 threads)\n", cb, mx / 1048576, rq }' "vmstat-$1.log"
 EOF
 chmod +x ~/bench/summary.sh
 ```
 
-Runs go in `tmux`, which keeps them alive if the terminal closes:
-`tmux new -s bench` starts a session; Ctrl+b then c opens a window, Ctrl+b then
-n moves to the next one, Ctrl+b then d leaves it running, and
-`tmux attach -t bench` comes back.
+Runs go in tmux, which keeps them alive if the terminal closes. Ctrl+b then c
+opens a new window, Ctrl+b then a number moves to that window, Ctrl+b then d
+leaves everything running, and `tmux attach -t bench` comes back.
 
-For the RTX 5080: in window 0, `~/bench/monitor.sh alone-5080`; in window 1:
+The order matters: the monitor starts first and stops last, so that it records
+the whole run. For the RTX 5080:
 
-```bash
-cd ~/bench/nnunet && source env.sh
-CUDA_VISIBLE_DEVICES=<uuid-5080> nnUNet_results="$RESULTS_5080" \
-    uv run nnUNetv2_train 9 3d_fullres 0 -p nnUNetResEncUNetMPlans -tr nnUNetTrainerBenchmark_5epochs
-```
+1. `tmux new -A -s bench` opens window 0 of a session named bench (or returns
+   to it, if it exists). In window 0, start the monitor:
+   `~/bench/monitor.sh alone-5080`. It prints `logging alone-5080`.
+2. Ctrl+b then c opens window 1. In it, the training:
 
-When it finishes, stop the monitor with Ctrl+C in window 0, and keep the
-result:
+   ```bash
+   cd ~/bench/nnunet && source env.sh
+   CUDA_VISIBLE_DEVICES="$GPU_5080" nnUNet_results="$RESULTS_5080" \
+       uv run nnUNetv2_train 9 3d_fullres 0 -p nnUNetResEncUNetMPlans -tr nnUNetTrainerBenchmark_5epochs
+   ```
 
-```bash
-cd ~/bench/nnunet && source env.sh
-F="Dataset009_Spleen/nnUNetTrainerBenchmark_5epochs__nnUNetResEncUNetMPlans__3d_fullres/fold_0/benchmark_result.json"
-cp "$RESULTS_5080/$F" ~/bench/logs/alone-5080.json
-grep -E '"(gpu_name|fastest_epoch)"' ~/bench/logs/alone-5080.json
-~/bench/summary.sh alone-5080
-```
+3. When window 1 prints `Training done.`, go to window 0 (Ctrl+b then 0) and
+   stop the monitor with Ctrl+C: it prints `stopped: alone-5080`.
+4. Back in window 1 (Ctrl+b then 1), keep the result and summarize the run:
 
-Then the same for the RTX 4070: the run name `alone-4070`, `<uuid-4070>` and
-`$RESULTS_4070` in place of the 5080's.
+   ```bash
+   cp "$RESULTS_5080/$BENCH_JSON" ~/bench/logs/alone-5080.json
+   grep -E '"(gpu_name|fastest_epoch)"' ~/bench/logs/alone-5080.json
+   ~/bench/summary.sh alone-5080
+   ```
 
-Each run is pinned to a GPU by its UUID, so nothing depends on how PyTorch or
-`nvidia-smi` number the cards. If `torch.compile` fails inside nnU-Net,
-`nnUNet_compile=f` in front of the command turns it off; note it, because it
-changes the speed.
+Then the RTX 4070, in the same session and windows: in window 0,
+`~/bench/monitor.sh alone-4070`; in window 1, the commands of steps 2 and 4
+with `$GPU_4070`, `$RESULTS_4070` and `alone-4070` in place of the 5080's.
+
+Each benchmark writes its result to the same file of its GPU's folder, and the
+next run overwrites it: that is why step 4 copies it right away. Each run is
+pinned to a GPU by its UUID, so nothing depends on how PyTorch or `nvidia-smi`
+number the cards. If `torch.compile` fails inside nnU-Net, `nnUNet_compile=f` in
+front of the command turns it off; note it, because it changes the speed.
+
+The first benchmark after an install also compiles its kernels: its epoch 0 can
+take twice as long as in later runs, which reuse them. `fastest_epoch` is not
+affected. Repeating a run gives the same `fastest_epoch` within about 1%, so a
+smaller difference between two runs is noise.
 
 How to fill the benchmark table:
 
@@ -398,8 +475,11 @@ How to fill the benchmark table:
 - **Wh/epoch:** mean power in W × s/epoch ÷ 3600. This is the GPU board alone;
   section 10 measures the whole PC.
 - **PCIe link under load:** Gen5 x8 for the 5080 and Gen4 x8 for the 4070.
-- **Clock event reasons:** a bitmask; `0x0000000000000000` is none. Any other
-  value means something held the clocks back (power cap, temperature): note it.
+- **Clock event reasons:** a bitmask, with the number of samples of each value.
+  `0x0000000000000000` is none; `0x0000000000000004` is *SW Power Cap*, the card
+  at its power limit, which is normal under load. Any other value means
+  something else held the clocks back, temperature for example: note it, and
+  look it up in `nvidia-smi --help-query-gpu`.
 
 **Check:** both runs finish; the RTX 4070's peak memory stays below its 12 GB
 with room to spare; each link reaches its generation at x8.
@@ -407,67 +487,142 @@ with room to spare; each link reaches its generation at x8.
 ### 8. Power limits: each GPU's sweet spot
 
 A power limit caps what the card may draw; a little less power often costs
-little speed. Steps of 100, 90, 80 and 70% of each card's default limit
-(section 5), rounded, leaving out any value below its *Min Power Limit*: for a
-default of 360 W, 360, 324, 288 and 252 W; for a default of 200 W, 200, 180, 160
-and 140 W.
-
-For each GPU and each step, with the other GPU idle. The limit:
+little speed. The steps are 100, 90, 80 and 70% of each card's default limit
+(section 5), rounded, leaving out any value below its *Min Power Limit*. This
+prints them:
 
 ```bash
-sudo nvidia-smi -i <uuid-5080> -pl 324
-nvidia-smi -i <uuid-5080> --query-gpu=power.limit --format=csv,noheader     # 324.00 W
+source ~/bench/nnunet/env.sh
+for g in "$GPU_5080" "$GPU_4070"; do
+  nvidia-smi -i "$g" --query-gpu=name,power.default_limit,power.min_limit --format=csv,noheader,nounits |
+    awk -F', ' '{ printf "%s:", $1; for (p = 100; p >= 70; p -= 10) { w = int($2 * p / 100 + 0.5); if (w >= $3) printf " %d", w }; print " W" }'
+done
 ```
 
-Then the benchmark of section 7 under the run name `pl-5080-324`, and
-`pl-5080-324.json` as its result file. Repeat for every step and both GPUs. At
-the end, return each GPU to its default:
+Each step is one benchmark, with the other GPU idle, in the tmux session of
+section 7. Below, the RTX 5080 at 324 W: for each step, replace `324` in both
+windows with the value the loop printed.
+
+1. Window 0, the monitor:
+
+   ```bash
+   W=324; ~/bench/monitor.sh pl-5080-$W
+   ```
+
+2. Window 1, the limit. First:
+
+   ```bash
+   cd ~/bench/nnunet && source env.sh
+   W=324
+   sudo -v
+   ```
+
+   then the limit, its check and the benchmark:
+
+   ```bash
+   sudo nvidia-smi -i "$GPU_5080" -pl "$W"
+   nvidia-smi -i "$GPU_5080" --query-gpu=power.limit --format=csv,noheader     # 324.00 W
+   CUDA_VISIBLE_DEVICES="$GPU_5080" nnUNet_results="$RESULTS_5080" \
+       uv run nnUNetv2_train 9 3d_fullres 0 -p nnUNetResEncUNetMPlans -tr nnUNetTrainerBenchmark_5epochs
+   ```
+
+3. At `Training done.`, stop the monitor in window 0 with Ctrl+C.
+4. Window 1, the result:
+
+   ```bash
+   cp "$RESULTS_5080/$BENCH_JSON" ~/bench/logs/pl-5080-$W.json
+   grep '"fastest_epoch"' ~/bench/logs/pl-5080-$W.json
+   ~/bench/summary.sh pl-5080-$W
+   awk -F', ' '$2 ~ /5080/ && $3 + 0 >= 50 { print $7 }' ~/bench/logs/gpu-pl-5080-$W.csv | sort | uniq -c    # one value: the limit set
+   ```
+
+   That last line lists the power limit of every busy sample. The samples
+   logged before the limit was set carry the previous one, and the line leaves
+   them out.
+
+For the RTX 4070, `4070` in place of `5080` everywhere, `$GPU_4070` and
+`$RESULTS_4070`, and its own values. A value outside a card's *Min* and *Max
+Power Limit* is refused, and the benchmark would then run at the previous
+limit: the check after `-pl` shows it before the training starts.
+
+On the RTX 4070, `nvidia-smi -pl` warns that persistence mode is disabled. A
+limit set that way holds while some program keeps the GPU open. The monitor
+does, which is why it starts before the limit is set; the last line of step 4
+proves it, with every busy sample at the limit set. The RTX 5080 drives the
+desktop, which keeps it open anyway.
+
+At the end, return both GPUs to their defaults:
 
 ```bash
-sudo nvidia-smi -i <uuid-5080> -pl <default-5080>
-sudo nvidia-smi -i <uuid-4070> -pl <default-4070>
+sudo -v
+```
+
+```bash
+for g in "$GPU_5080" "$GPU_4070"; do
+  sudo nvidia-smi -i "$g" -pl "$(nvidia-smi -i "$g" --query-gpu=power.default_limit --format=csv,noheader,nounits)"
+done
 nvidia-smi --query-gpu=name,power.limit,power.default_limit --format=csv
 ```
 
-A limit set this way lasts until the next restart. Applying the chosen limits at
-every start is a separate decision, with its own record.
+A limit set this way lasts until the next restart, at most. Applying the chosen
+limits at every start is a separate decision, with its own record.
 
-How to read it: Wh/epoch falls as the limit falls, and s/epoch grows. The sweet
-spot is the step after which the time starts to grow faster than the energy
-falls; decide in advance how much slower you accept, for example 5%.
+How to read it:
 
-**Check:** the sweep table has every step of both GPUs, and both are back at
-their defaults.
+- Wh/epoch falls as the limit falls, and s/epoch grows. The sweet spot is the
+  step after which the time starts to grow faster than the energy falls; decide
+  in advance how much slower you accept, for example 5%.
+- A limit above what the card draws under this load (the summary's mean power
+  at 100%) changes nothing.
+- Under a cap, the power that the RTX 4070 reports can sit well below the cap
+  (about 141 W under a 160 W limit, on the first run), while the RTX 5080's sits
+  at its cap. Whether the 4070 really draws that little is for the wall meter
+  to say: treat its Wh/epoch as provisional until section 10.
+- Choose with the whole PC (section 10): while a slower epoch takes its extra
+  time, the rest of the machine keeps drawing power, and a GPU's saving can
+  vanish at the wall.
+
+**Check:** the sweep table has every step of both GPUs; each run's last line
+shows only the limit set; both GPUs are back at their defaults.
 
 ### 9. One GPU against two
 
-Both benchmarks at once, started together, with the run name `together` for the
-monitor. Window 1, the RTX 5080:
+Both benchmarks at once, with the run name `together` for the monitor. The RTX
+5080 finishes its five epochs long before the RTX 4070, so more runs, which
+nobody measures, keep it busy until the 4070 is done. Without them, the 4070's
+last epochs would run alone and look faster than they are together.
 
-```bash
-cd ~/bench/nnunet && source env.sh
-CUDA_VISIBLE_DEVICES=<uuid-5080> nnUNet_results="$RESULTS_5080" \
-    uv run nnUNetv2_train 9 3d_fullres 0 -p nnUNetResEncUNetMPlans -tr nnUNetTrainerBenchmark_5epochs
-```
+1. Window 0: `~/bench/monitor.sh together`.
+2. Window 1, the RTX 5080: the measured run, its result, and runs that keep the
+   GPU busy, one after another, until you stop them:
 
-Window 2, the RTX 4070, at the same time:
+   ```bash
+   cd ~/bench/nnunet && source env.sh
+   CUDA_VISIBLE_DEVICES="$GPU_5080" nnUNet_results="$RESULTS_5080" \
+       uv run nnUNetv2_train 9 3d_fullres 0 -p nnUNetResEncUNetMPlans -tr nnUNetTrainerBenchmark_5epochs &&
+   cp "$RESULTS_5080/$BENCH_JSON" ~/bench/logs/together-5080.json &&
+   while CUDA_VISIBLE_DEVICES="$GPU_5080" nnUNet_results="$RESULTS_5080" \
+       uv run nnUNetv2_train 9 3d_fullres 0 -p nnUNetResEncUNetMPlans -tr nnUNetTrainerBenchmark_5epochs; do :; done
+   ```
 
-```bash
-cd ~/bench/nnunet && source env.sh
-CUDA_VISIBLE_DEVICES=<uuid-4070> nnUNet_results="$RESULTS_4070" \
-    uv run nnUNetv2_train 9 3d_fullres 0 -p nnUNetResEncUNetMPlans -tr nnUNetTrainerBenchmark_5epochs
-```
+3. Window 2 (Ctrl+b then c), the RTX 4070, right after:
 
-When both have finished:
+   ```bash
+   cd ~/bench/nnunet && source env.sh
+   CUDA_VISIBLE_DEVICES="$GPU_4070" nnUNet_results="$RESULTS_4070" \
+       uv run nnUNetv2_train 9 3d_fullres 0 -p nnUNetResEncUNetMPlans -tr nnUNetTrainerBenchmark_5epochs
+   ```
 
-```bash
-cd ~/bench/nnunet && source env.sh
-F="Dataset009_Spleen/nnUNetTrainerBenchmark_5epochs__nnUNetResEncUNetMPlans__3d_fullres/fold_0/benchmark_result.json"
-cp "$RESULTS_5080/$F" ~/bench/logs/together-5080.json
-cp "$RESULTS_4070/$F" ~/bench/logs/together-4070.json
-grep -h -E '"(gpu_name|fastest_epoch)"' ~/bench/logs/together-*.json
-~/bench/summary.sh together
-```
+4. When window 2 prints `Training done.`: Ctrl+C in window 1, which stops the
+   5080's extra runs (it may print an error trace; their results are not used),
+   then Ctrl+C in window 0.
+5. Window 2, the results:
+
+   ```bash
+   cp "$RESULTS_4070/$BENCH_JSON" ~/bench/logs/together-4070.json
+   grep -h -E '"(gpu_name|fastest_epoch)"' ~/bench/logs/together-*.json
+   ~/bench/summary.sh together
+   ```
 
 Both runs use fold 0 because the benchmark trainers accept no other. The fold
 does not change the speed: every epoch is 250 iterations of the same patch and
@@ -479,9 +634,12 @@ How to read it, with T as s/epoch:
   3600 ÷ T(5080 alone). Together, the machine gives 3600 ÷ T(5080 together) +
   3600 ÷ T(4070 together). Their ratio is what the second GPU adds.
 - **Interference:** if each GPU is much slower together than alone, the two
-  trainings compete for the CPU. A busy CPU near 100% and a run queue above 24
-  point there: repeat with `nnUNet_n_proc_DA=6` and with `10` (put it in front
-  of both commands) and keep the faster.
+  trainings compete for the CPU. Compare s/epoch first. The summary's CPU peaks
+  include the seconds in which nnU-Net starts its worker processes, at the
+  start of each training and of each validation, when the run queue jumps far
+  above 24; that alone is not contention. If the epochs did slow down, repeat
+  with `nnUNet_n_proc_DA=6` and with `10` (put it in front of both commands) and
+  keep the faster.
 
 **Check:** the one-against-two table is filled, and a value of
 `nnUNet_n_proc_DA` is chosen.
@@ -499,23 +657,29 @@ another two:
 - idle, on the desktop;
 - the RTX 5080 training alone, then the RTX 4070 alone (the benchmarks of
   section 7 again);
+- each step of section 8 that is a candidate for the sweet spot;
 - both together, at their default limits and at the chosen ones;
-- the kWh over the whole soak test (section 11).
+- the kWh over the whole soak test (section 11), if it is repeated with the
+  meter.
 
 The difference between the wall and the sum of `power.draw` is the rest of the
 machine. The kWh of a training is what it costs: kWh × your tariff.
+
+Until this section runs, both GPUs stay at their default limits.
 
 **Check:** the wall-power table is filled.
 
 ### 11. Soak test: both GPUs for three hours
 
-Run it once the previous sections pass, with the chosen power limits applied
-(section 8) and the chosen `nnUNet_n_proc_DA` in `env.sh`. nnU-Net's default
-trainer on fold 0 and fold 1, one per GPU, stopped after three hours. `timeout`
-sends the interrupt that Ctrl+C would; it calls nnU-Net's own command in the
-project's environment so that the signal reaches it directly.
+Run it once sections 1 to 9 pass (section 10 can wait for its meter), with the
+chosen `nnUNet_n_proc_DA` in `env.sh`, at the default power limits: the hottest
+case. If section 8 later
+sets lower limits, the soak's temperatures are an upper bound. nnU-Net's
+default trainer on fold 0 and fold 1, one per GPU, stopped after three hours.
+`timeout` sends the interrupt that Ctrl+C would; it calls nnU-Net's own command
+in the project's environment so that the signal reaches it directly.
 
-Window 0, the start time and the monitors:
+Window 0, the start time and the monitor:
 
 ```bash
 date '+%F %T' > ~/bench/logs/soak-start
@@ -526,48 +690,64 @@ Window 1, the RTX 5080 on fold 0:
 
 ```bash
 cd ~/bench/nnunet && source env.sh
-CUDA_VISIBLE_DEVICES=<uuid-5080> timeout -s INT 3h .venv/bin/nnUNetv2_train 9 3d_fullres 0 -p nnUNetResEncUNetMPlans
+CUDA_VISIBLE_DEVICES="$GPU_5080" timeout -s INT 3h .venv/bin/nnUNetv2_train 9 3d_fullres 0 -p nnUNetResEncUNetMPlans
 ```
 
-Window 2, the RTX 4070 on fold 1, at the same time:
+Window 2, the RTX 4070 on fold 1, right after:
 
 ```bash
 cd ~/bench/nnunet && source env.sh
-CUDA_VISIBLE_DEVICES=<uuid-4070> timeout -s INT 3h .venv/bin/nnUNetv2_train 9 3d_fullres 1 -p nnUNetResEncUNetMPlans
+CUDA_VISIBLE_DEVICES="$GPU_4070" timeout -s INT 3h .venv/bin/nnUNetv2_train 9 3d_fullres 1 -p nnUNetResEncUNetMPlans
 ```
 
 Window 3, disk and temperatures; window 4, `htop` to watch while it runs:
 
 ```bash
 iostat -xz 5 > ~/bench/logs/iostat-soak.log &
-while sleep 30; do date; sensors; done > ~/bench/logs/sensors-soak.log
+while sleep 30; do date; sensors 2>/dev/null; done > ~/bench/logs/sensors-soak.log
 ```
 
-When both trainings have stopped, stop the monitors (Ctrl+C in windows 0 and 3,
-then `kill %1` in window 3), and check:
+When both trainings have stopped, stop the monitors: Ctrl+C in window 0; in
+window 3, Ctrl+C, then `kill %1`. Then check:
 
 ```bash
 S=$(cat ~/bench/logs/soak-start)
-journalctl -k --since "$S" | grep -iE 'NVRM|Xid|AER|MCE|EDAC|nvme|I/O error'     # nothing
-journalctl -u systemd-oomd --since "$S" --no-pager | grep -i kill               # nothing
+journalctl -k --since "$S" | grep -iE 'NVRM|Xid|AER|machine check|hardware error|EDAC|nvme|I/O error'   # nothing
+journalctl -u systemd-oomd --since "$S" --no-pager | grep -i killed                                     # nothing
 ~/bench/summary.sh soak 300
 cd ~/bench/nnunet && source env.sh
 for f in 0 1; do
   grep -h 'Epoch time' "$nnUNet_results"/Dataset009_Spleen/nnUNetTrainer__nnUNetResEncUNetMPlans__3d_fullres/fold_$f/training_log_*.txt | sed -n '3p;$p'
-done                                                                            # an early epoch and the last, per fold: about equal
-grep 'Tctl' ~/bench/logs/sensors-soak.log | sort -t+ -k2 -n | tail -n 1         # the CPU's highest reading
-grep 'Composite' ~/bench/logs/sensors-soak.log | sort -t+ -k2 -n | tail -n 1    # the SSDs' highest reading
+done                                                                                       # an early epoch and the last, per fold: about equal
+grep 'Tctl' ~/bench/logs/sensors-soak.log | sort -t+ -k2 -n | tail -n 1                    # the CPU's highest reading
+grep -A2 '^spd5118' ~/bench/logs/sensors-soak.log | grep 'temp1:' | sort -t+ -k2 -n | tail -n 1   # the memory modules' highest
+grep 'Composite' ~/bench/logs/sensors-soak.log | sort -t+ -k2 -n | tail -n 1               # the SSDs' highest reading
 ```
 
-In the kernel log, `Xid` lines are GPU errors, `AER` lines PCIe errors, `MCE`
-and `EDAC` lines CPU or memory errors, and `nvme` or `I/O error` lines disk
-errors: during the soak there should be none. Epochs that grow longer over the
-three hours point at heat: compare the temperatures and the clock event
-reasons.
+In the kernel log, `Xid` lines are GPU errors, `AER` lines PCIe errors,
+`machine check`, `hardware error` and `EDAC` lines CPU or memory errors, and
+`nvme` or `I/O error` lines disk errors: during the soak there should be none.
+Epochs that grow longer over the three hours point at heat: compare the
+temperatures and the clock event reasons.
+
+The CPU can hold a `Tctl` near 90 °C through the soak while it is mostly idle:
+it raises the clock of its busy cores until temperature or power stops it, and
+the hottest core sets `Tctl`. It is a concern only near 95 °C. The case fans'
+response is set in the firmware (install guide, sections 6 and 21). DDR5
+modules work normally up to 85 °C.
+
+After the next normal restart, the SSD's count of unsafe shutdowns must be the
+one noted in section 4:
+
+```bash
+U=$(lsblk -lnso NAME,TYPE "$(findmnt -n -o SOURCE /)" | awk '$2 == "disk" { print "/dev/" $1 }')
+sudo smartctl -a "$U" | grep 'Unsafe Shutdowns'
+```
 
 **Check:** both trainings ran three hours and stopped only at the timeout; the
 kernel logged no error; systemd-oomd killed nothing; epoch times and
-temperatures held steady.
+temperatures held steady; after a normal restart, the unsafe shutdowns did not
+grow.
 
 ### 12. Results sheet
 
@@ -580,9 +760,10 @@ Copy these tables into your private note and fill them as you go.
 | CPU, threads | |
 | Board, firmware version and date | |
 | Memory: size, configured speed, EXPO on or off | |
+| CPU frequency: driver and mode, governor, EPP, power profile | |
 | Ubuntu, kernel, driver, Secure Boot | |
 | Resizable BAR on each GPU | |
-| Idle: CPU `Tctl`, SSD `Composite`, each GPU's temperature, power and memory | |
+| Idle: CPU `Tctl`, memory modules, SSD `Composite`, each GPU's temperature, power and memory | |
 
 **Stability and SSD**
 
@@ -591,7 +772,9 @@ Copy these tables into your private note and fill them as you go.
 | CPU stress, 30 min: result, peak `Tctl` | |
 | Memory stress, 60 min: result | |
 | memtester (optional): result | |
-| SSD link; critical warning; percentage used; media errors | |
+| Kernel log and systemd-oomd after the tests | |
+| SSD model and slot; link; critical warning; percentage used; media errors | |
+| SSD unsafe shutdowns: in section 4, and after the next normal restart | |
 | SSD sequential read (MB/s), random read (IOPS), write (MB/s) | |
 | SSD temperature, idle and after the speed test | |
 
@@ -600,6 +783,7 @@ Copy these tables into your private note and fill them as you go.
 | | RTX 5080 | RTX 4070 |
 |---|---|---|
 | Default / min / max power limit | | |
+| PCIe generation: card maximum, host maximum | | |
 
 **Benchmark, each GPU alone, default limits**
 
@@ -611,19 +795,19 @@ Copy these tables into your private note and fill them as you go.
 | Mean power (W) | | |
 | Wh/epoch | | |
 | Peak temperature (°C) | | |
-| CPU busy (%) | | |
-| Peak memory in use (GiB) | | |
 | PCIe link under load | | |
-| Clock event reasons | | |
+| Samples at the power cap (`0x4`) | | |
+| CPU peak busy (%), peak run queue | | |
+| Peak memory in use (GiB) | | |
 
 **Power sweep** (one table per GPU)
 
-| Limit (W) | s/epoch | Mean power (W) | Wh/epoch | Peak °C |
-|---|---|---|---|---|
-| 100% | | | | |
-| 90% | | | | |
-| 80% | | | | |
-| 70% | | | | |
+| Limit (W) | s/epoch | Time vs 100% | Mean power (W) | Wh/epoch | Energy vs 100% | Peak °C | Samples at the cap |
+|---|---|---|---|---|---|---|---|
+| 100% | | | | | | | |
+| 90% | | | | | | | |
+| 80% | | | | | | | |
+| 70% | | | | | | | |
 
 **One GPU against two**
 
@@ -631,9 +815,11 @@ Copy these tables into your private note and fill them as you go.
 |---|---|---|---|
 | s/epoch alone | | | |
 | s/epoch together | | | |
+| Peak temperature together (°C) | | | |
 | Epochs per hour, together | | | |
 | Gain over the 5080 alone | | | |
-| CPU busy, peak run queue | | | |
+| CPU busy: steady, and peak while workers start; peak run queue | | | |
+| Peak memory in use (GiB) | | | |
 | `nnUNet_n_proc_DA` chosen | | | |
 
 **Wall power**
@@ -654,16 +840,31 @@ Copy these tables into your private note and fill them as you go.
 | Errors in the kernel log | |
 | systemd-oomd kills | |
 | Early and last epoch, each GPU | |
-| Peak temperatures: each GPU, CPU, SSD | |
+| Peak temperatures: each GPU, CPU, memory modules, SSD | |
 
 What the results decide:
 
 - **The RTX 4070's role:** if its peak memory leaves room below 12 GB with
   ResEnc M, it trains folds of its own; repeat with the thesis dataset before
   relying on it.
-- **Power limits:** whether to apply the sweet spots at every start.
+- **Power limits:** whether to apply the sweet spots at every start, once the
+  wall meter (section 10) confirms them.
 - **`nnUNet_n_proc_DA`** for two trainings at once.
 - **The cost of a training:** its kWh from the wall.
+
+## Appendix: the identifiers, for your private note
+
+These print the values that stay out of this repository, all at once:
+
+```bash
+source ~/bench/nnunet/env.sh
+echo "RTX 5080: $GPU_5080"; echo "RTX 4070: $GPU_4070"
+nvidia-smi --query-gpu=name,pci.bus_id --format=csv,noheader
+U=$(lsblk -lnso NAME,TYPE "$(findmnt -n -o SOURCE /)" | awk '$2 == "disk" { print "/dev/" $1 }')
+ls -l /dev/disk/by-id/ | grep "/$(basename "$U")$"          # the Ubuntu SSD's identifiers
+sudo smartctl -i "$U" | grep -E 'Model Number|Serial Number'
+hostname
+```
 
 ## References
 
@@ -680,3 +881,7 @@ What the results decide:
 - `stress-ng`: https://manpages.ubuntu.com/manpages/noble/man1/stress-ng.1.html
 - smartmontools: https://www.smartmontools.org
 - `fio`: https://fio.readthedocs.io/en/latest/fio_doc.html
+- `lsblk`: https://man7.org/linux/man-pages/man8/lsblk.8.html
+- AMD P-State driver (`amd-pstate`, EPP):
+  https://docs.kernel.org/admin-guide/pm/amd-pstate.html
+- `spd5118` (DDR5 module temperatures): https://docs.kernel.org/hwmon/spd5118.html
