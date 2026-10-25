@@ -68,7 +68,8 @@ heartbeat, and pings that carry no identifiers.
 
 No disk passphrase, power-on after a power cut, timed automatic reboots for
 security fixes (service hosts only), and Secure Boot with the 2023
-certificates. Accepted when the host survives a real power cut.
+certificates. Its power-cut test passed; its Secure Boot point is superseded
+for the current service host by ADR-011.
 
 ### 009 - The GPU workstation runs Ubuntu Desktop on its own disk, trialled over USB4 first
 
@@ -87,6 +88,22 @@ The USB4 enclosure disconnected in Windows and in the middle of the install.
 M2_1 because it is on the CPU's lanes; the Windows data disk moved to a chipset
 slot.
 
+### 011 - The service host runs without Secure Boot, because its firmware offers only a test key
+
+[`ADR-011-the-service-host-runs-without-secure-boot.md`](ADR-011-the-service-host-runs-without-secure-boot.md)
+
+Its firmware holds no keys, and its factory keys stop at an AMI test platform
+key and the 2011 certificates. Installing them, and replacing the test key, are
+refused for now.
+
+### 012 - SSH goes over Tailscale with each computer's own key, not with Tailscale SSH
+
+[`ADR-012-ssh-over-tailscale-with-a-key-per-computer.md`](ADR-012-ssh-over-tailscale-with-a-key-per-computer.md)
+
+A login needs the tailnet and a key. Tailscale SSH is refused: its check mode
+asks for a browser sign-in every 12 hours and hangs VS Code, and its accept
+mode leaves the Tailscale account as the only lock.
+
 ## Open decisions
 
 Each one gets its record when the work reaches it. Operational choices that
@@ -96,6 +113,7 @@ is handled during an install) are recorded in that guide's decisions table.
 | Decision | Where it is decided |
 |---|---|
 | Role of the RTX 4070: second training GPU, or local inference (Ollama) | Validation guide, sections 7 and 9, repeated with the real dataset |
-| Switching to Windows remotely | Tailscale guide |
+| GPU power limits applied at every start | Validation guide, sections 8 and 10 |
+| Switching to Windows remotely | A later revision of the Tailscale guide |
 | Experiment tracker: MLflow or Aim | Tracker guide |
 | A copy of irreplaceable data away from home | Backups guide |
