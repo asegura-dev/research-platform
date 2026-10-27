@@ -11,7 +11,9 @@ records and, later, scripts and configuration templates. It never contains an
 tokens. Each host keeps those outside git.
 
 > **Status:** early. Guides are written from official documentation, and each
-> one says whether it has been run end to end on real hardware.
+> one says whether it has been run end to end on real hardware. The
+> [roadmap](docs/roadmap.md) lists what holds, what is left before real work,
+> and what was considered and refused.
 
 ## Hosts
 
@@ -44,11 +46,11 @@ when the house loses power
 |---|---|---|
 | [Install Ubuntu Server on a single-OS host](docs/guides/install-ubuntu-server.md) | Service host | First run in October 2026, steps 1 to 11; without Secure Boot (ADR-011) |
 | [Install Ubuntu Desktop on the GPU workstation](docs/guides/install-ubuntu-gpu-workstation.md) | GPU workstation | First run on 2026-10-21, sections 1 to 20 |
-| [Validate the GPU workstation before it trains for real](docs/guides/validate-gpu-workstation.md) | GPU workstation | First run on 2026-10-22, sections 1 to 9 and 11; the memory stress to repeat, section 10 pending |
+| [Validate the GPU workstation before it trains for real](docs/guides/validate-gpu-workstation.md) | GPU workstation | First run on 2026-10-22, sections 1 to 9 and 11, memory stress repeated over 40 GiB; section 10 pending |
 | [Join the hosts and your computers with Tailscale](docs/guides/install-tailscale.md) | Both hosts and your computers | Written on 2026-10-25; first run pending |
 
 Planned: Docker, ntfy, liveness checks, Forgejo and its runner, experiment
-tracking, operating long runs, and backups.
+tracking, operating long runs, backups, and monitoring.
 
 ## Decisions
 

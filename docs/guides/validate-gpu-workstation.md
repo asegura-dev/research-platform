@@ -11,9 +11,10 @@
 > **Status:** run on 2026-10-22, sections 1 to 9 and 11. Section 10 waits for a
 > plug-in energy meter. That run's memory stress covered 5 GiB, not 40, because
 > of how Ubuntu 24.04's stress-ng counts `--vm-bytes`; section 3 now asks for
-> 40 GiB in total. Revised from that run on 2026-10-23: the summary script, the
-> order of the windows in each run, the power sweep, the extra runs that keep
-> the RTX 5080 busy in section 9, and the log searches.
+> 40 GiB in total, and the repeat over 40 GiB passed. Revised from that run on
+> 2026-10-23: the summary script, the order of the windows in each run, the
+> power sweep, the extra runs that keep the RTX 5080 busy in section 9, and
+> the log searches.
 
 This guide answers four questions before any project depends on the machine:
 

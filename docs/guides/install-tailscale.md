@@ -1,10 +1,10 @@
 # Join the hosts and your computers with Tailscale
 
-> **Scope:** the service host, the GPU workstation's Ubuntu, and the computers
-> you work from (Windows or Ubuntu). At the end, `ssh server` works from
-> anywhere, and nothing is opened to the internet. Services published with
-> Tailscale Serve come in their own guides. Switching the workstation to
-> Windows remotely is not covered yet.
+> **Scope:** the service host, the GPU workstation's Ubuntu, the computers you
+> work from (Windows or Ubuntu) and an Android phone. At the end, `ssh server`
+> works from anywhere, and nothing is opened to the internet. Services
+> published with Tailscale Serve come in their own guides. Switching the
+> workstation to Windows remotely is not covered yet.
 
 > **Status:** written on 2026-10-25, from the documentation and the source
 > code of Tailscale 1.104.2; not yet run.
@@ -28,6 +28,8 @@ Placeholders used throughout; replace each one, angle brackets included:
 
 - `<server-name>` and `<workstation-name>`: each host's name in the tailnet,
   as `tailscale status` prints it (section 5).
+- `<server-address>` and `<workstation-address>`: each host's address in the
+  tailnet, the one that starts with `100.` (`tailscale ip -4` on it).
 - `<user>`, `<github-user>`, `<lan-ip>`: as in the server guide.
 
 Never commit tailnet names, `100.` addresses or machine names to this
@@ -205,7 +207,7 @@ The installer from https://tailscale.com/download/windows does the same.
 Tailscale's icon appears next to the clock: right click, *Log in*, and sign in
 with the same account in the browser that opens.
 
-Then the computer's SSH key, as for any new computer (section 8): server
+Then the computer's SSH key, as for any new computer (section 9): server
 guide, appendix A, steps A.1 to A.3. Then its `config`, as in section 6; on
 Windows, the file is `$HOME\.ssh\config`, created with Notepad (server guide,
 step 12b).
@@ -214,20 +216,72 @@ step 12b).
 Windows, test names this way, not with `nslookup`); then, from another
 network, such as a phone's hotspot, `ssh server` opens a session.
 
-## 8. A new computer, and one you retire
+## 8. A phone (Android)
+
+For ADR-012 a phone is one more computer: it joins the tailnet and gets its
+own key. Termux gives it a terminal with OpenSSH.
+
+1. Install **Tailscale** from Google Play and sign in with the same account.
+   Leave its key expiry on: a lost phone drops off the tailnet by itself.
+2. Install **Termux** from F-Droid or from its GitHub releases, not from
+   Google Play, whose build is experimental and missing features. Take every
+   Termux app from one source: a mix fails to update.
+3. In Termux, the SSH client, an editor, and the phone's key:
+
+   ```bash
+   pkg update && pkg install openssh nano
+   ssh-keygen -t ed25519 -C "<label>"
+   cat ~/.ssh/id_ed25519.pub
+   ```
+
+   Give the key a passphrase: a phone stolen unlocked already holds the
+   tailnet and the key, and the passphrase is what is left. Select the line
+   that `cat` printed (a long press) and copy it.
+4. Register the key in GitHub from the phone's browser, and import it on each
+   host from a computer that already connects: server guide, appendix A,
+   steps A.2 and A.3.
+5. In Termux, `nano ~/.ssh/config`, with each host's `100.` address rather
+   than its name: on Android a name can fail to resolve, for example with
+   Private DNS turned on, and a device's tailnet address does not change while
+   it stays in the tailnet.
+
+   ```text
+   Host server
+       HostName <server-address>
+       User <user>
+
+   Host workstation
+       HostName <workstation-address>
+       User <user>
+   ```
+
+6. `ssh server`, pasting the server's fingerprint from your note when asked
+   (server guide, step 7b).
+
+In Termux, the Volume Down button works as Ctrl (Volume Down and c is Ctrl+C),
+and the row of extra keys above the keyboard has Esc, Tab and the arrows. To
+look at a training: `ssh workstation`, then `tmux attach -t bench`; Ctrl+b then
+d leaves it running.
+
+**Check:** with Wi-Fi off, on mobile data, `ssh server` opens a session from
+the phone.
+
+A lost phone is a retired computer (section 9).
+
+## 9. A new computer, and one you retire
 
 A new computer, in this order:
 
 1. Tailscale, signed in with your account: sections 2 and 3 on Ubuntu,
-   section 7 on Windows.
+   section 7 on Windows, section 8 on an Android phone.
 2. Its SSH key, and that key in GitHub: server guide, appendix A, steps A.1
    and A.2.
 3. From a computer that already connects, the key onto each host:
    `ssh server`, then `ssh-import-id gh:<github-user>`, and the list of
    fingerprints (appendix A.3); the same on the workstation once it runs an
    SSH server.
-4. Its `config` (section 6), and the first connection, comparing the
-   fingerprint.
+4. Its `config` (section 6; section 8 on a phone), and the first connection,
+   comparing the fingerprint.
 
 A computer you retire, lose or reinstall:
 
@@ -237,14 +291,14 @@ A computer you retire, lose or reinstall:
 **Check:** the new computer opens `ssh server` from outside the house, and the
 retired one no longer appears in `tailscale status`.
 
-## 9. Living with Tailscale
+## 10. Living with Tailscale
 
 - **Updates restart Tailscale.** For a few seconds, the sessions that go over
   the tailnet can freeze or drop. Anything long runs in tmux (server guide,
   step 12c). A training on the workstation runs on the machine itself and is
   not affected.
-- **Laptops sign in again every 180 days:** the icon's *Log in* on Windows,
-  `sudo tailscale up --force-reauth` on Ubuntu.
+- **Laptops and phones sign in again every 180 days:** the icon's *Log in* on
+  Windows, `sudo tailscale up --force-reauth` on Ubuntu, the app on the phone.
 - **When Tailscale is out of reach** (an outage, an account problem), at home
   `ssh server-lan` still works: that is why it stays.
 - **Firewall.** ufw is off on both hosts. If it is turned on one day, it will
@@ -264,11 +318,12 @@ stop there and write down what you saw.
 | 2 | `apt update` reports the Tailscale repository's key as missing (`NO_PUBKEY`) | The key did not download: repeat the first `curl` command of section 2. |
 | 3, 4 | `tailscale up` waits and no link appears | The machine has no internet access: `tailscale netcheck` shows whether it reaches Tailscale. |
 | 4, 5 | `tailscale status` says `Logged out.` and `Log in at:` with a link | That machine is not signed in: open the link, or run `sudo tailscale up` again. |
-| 5, 9 | A device shows `offline` in `tailscale status` | It is off, without network, or its key expired: `sudo tailscale up --force-reauth` on it. |
+| 5, 10 | A device shows `offline` in `tailscale status` | It is off, without network, or its key expired: `sudo tailscale up --force-reauth` on it. |
 | 6 | `ssh: Could not resolve hostname <server-name>` | MagicDNS is off, or the name is different: compare with `tailscale status`; meanwhile, `ssh <user>@$(tailscale ip -4 <server-name>)` works on Ubuntu. |
 | 6, 7 | `ssh server` asks for the fingerprint | Expected the first time by a new name: compare it with your note (server guide, step 7b). |
 | 6 | `tailscale ping <server-name>` answers, but `ssh server` does not | Something on the server blocks port 22: on it, `systemctl status ssh.socket ssh --no-pager`. |
 | 7 | `Resolve-DnsName` finds nothing on Windows | Tailscale is not signed in on that computer: its icon, *Log in*. |
+| 8 | On the phone, `ssh` cannot resolve a host's name, or times out | Use the host's `100.` address in Termux's `config` (section 8), and check that the Tailscale app shows *Connected*. |
 
 ## Next
 
@@ -302,3 +357,5 @@ published with Tailscale Serve.
   https://github.com/microsoft/winget-pkgs/tree/master/manifests/t/Tailscale/Tailscale
 - Docker, published ports and the firewall:
   https://docs.docker.com/engine/network/packet-filtering-firewalls/
+- Termux, where to install it from (F-Droid, GitHub; the Google Play build is
+  experimental): https://github.com/termux/termux-app
