@@ -8,9 +8,10 @@
 
 > **Status:** written on 2026-10-29 from idc-index 0.13.4, which carries IDC
 > data release v25, and from the collection's page at The Cancer Imaging
-> Archive (TCIA). The install and the dry run (sections 2 and 3) were checked
-> with that version, and the download's behaviour on errors and resumes was
-> read in the source of idc-index and s5cmd; the download has not run yet.
+> Archive (TCIA). First run on 2026-10-29: the whole collection downloaded in
+> about three hours over Wi-Fi, and every count of sections 5 and 6 matched.
+> Revised from that run the same day: the real speed (section 4) and the
+> table's last line (section 6).
 
 IDC keeps public DICOM collections in public cloud buckets. Its Python tool,
 idc-index, downloads a whole collection with one command, needs no account,
@@ -64,7 +65,8 @@ and IDC's index both give 117.08 GB. This guide checks against IDC's numbers.
   | 1 Gbit/s | about 16 min, in theory |
 
   With 374,151 small files the real speed is lower. One night is enough from
-  50 Mbit/s up.
+  50 Mbit/s up. The first run took about three hours, at about 12 MB/s
+  (100 Mbit/s).
 
 **Check:** `df -h ~` shows at least 235 GB under *Avail*; about 500 GB leaves
 room for the conversions.
@@ -130,6 +132,17 @@ idc download-from-selection --collection-id psma_pet_ct_lesions --download-dir ~
 It prints the three lines of the dry run, then the download's progress. Ctrl+b
 then d leaves it running; `tmux attach -t data`, at the workstation or over
 SSH, shows it again.
+
+The progress bar adds up the files already in their folders, and its speed
+lags behind. The network shows the real one: in another terminal,
+
+```bash
+sar -n DEV 1 5 | grep -E 'IFACE|Average'
+```
+
+prints, in the line of the Wi-Fi interface (`wl…`) or the cable's (`en…`), the
+kilobytes received per second under `rxkB/s`. On the first run it read about
+12,000 while the bar showed about 5 MB/s.
 
 **If it stops** (the connection drops, the machine restarts), run the same
 command again, in tmux. With `--use-s5cmd-sync True` and files already in the
@@ -219,18 +232,17 @@ Read-only checks:
 ```bash
 F=PSMA-PET-CT-Lesions-CLINICAL_v01_20251118.tsv
 head -n 1 "$F"                                # case_identifier_number, study_date, Age_at_Imaging, Manufacturer, …
-tail -n +2 "$F" | wc -l                       # lines: one per study
-tail -n +2 "$F" | cut -f1 | sort -u | wc -l   # patients
-sha256sum "$F"                                # for your record
+awk 'END {print NR - 1}' "$F"                 # 597: one line per study
+tail -n +2 "$F" | cut -f1 | sort -u | wc -l   # 378 patients
+sha256sum "$F"                                # 737bf9666814a2f90c7201f42ae2f0a2f8e049901a3773b322fa4182b89fbb99
 ```
 
 `case_identifier_number` is the DICOM `PatientID`, the name of each patient's
-folder in section 4. The table has one line per study, so the two counts
-should be the collection's 597 studies and 378 patients. They were not checked
-when this guide was written: if they differ, write down what you got.
+folder in section 4. The file does not end with a line break, so `wc -l`
+counts one line fewer (596); `awk` counts the last line too.
 
-**Check:** the header starts with `case_identifier_number`, and the counts are
-in your record.
+**Check:** the header, 597 studies, 378 patients, and the SHA-256 above. A
+different hash means that TCIA changed the file: write down the new one.
 
 ## 7. Record what you downloaded
 
