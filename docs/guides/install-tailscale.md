@@ -171,9 +171,19 @@ tailscale get auto-update        # true: Tailscale updates itself
 
 ## 6. SSH by name, from anywhere
 
-On the workstation, edit `~/.ssh/config` (`nano ~/.ssh/config`). `server`
-now names the host in the tailnet, and `server-lan` keeps the LAN address, the
-way in at home when Tailscale is out of reach:
+Each computer you connect from has its own `config`; the server guide's step
+12b says how to open it on Ubuntu and on Windows. By the end of this guide,
+they hold these names:
+
+| Computer | Names in its `config` |
+|---|---|
+| The workstation | `server` and `server-lan` |
+| Any other computer you work from, Windows or Ubuntu | `server` and `server-lan`; `workstation`, once the workstation runs its SSH server |
+| The phone | `server` and `workstation`, by their `100.` addresses (section 8) |
+
+On the workstation, open it with `nano ~/.ssh/config`. `server` now names the
+host in the tailnet, and `server-lan` keeps the LAN address, the way in at
+home when Tailscale is out of reach:
 
 ```text
 Host server
@@ -192,8 +202,18 @@ uses the address SSH already knows.
 
 **Check:** `ssh server` and `ssh server-lan` both open a session on the server.
 
-The workstation can be reached the same way once its SSH server is set up
-(its guide, section 22): `Host workstation` with `HostName <workstation-name>`.
+Once the workstation runs its SSH server (its guide, section 22), the
+computers you work from reach it by name too, with these lines added to their
+`config`:
+
+```text
+Host workstation
+    HostName <workstation-name>
+    User <user>
+```
+
+The first `ssh workstation` asks for the workstation's fingerprint: compare it
+with the ones you wrote down in its guide's section 22.
 
 ## 7. A computer outside the house (Windows)
 
@@ -207,10 +227,10 @@ The installer from https://tailscale.com/download/windows does the same.
 Tailscale's icon appears next to the clock: right click, *Log in*, and sign in
 with the same account in the browser that opens.
 
-Then the computer's SSH key, as for any new computer (section 9): server
-guide, appendix A, steps A.1 to A.3. Then its `config`, as in section 6; on
-Windows, the file is `$HOME\.ssh\config`, created with Notepad (server guide,
-step 12b).
+Then the computer's SSH key, if it does not have one yet, as for any new
+computer (section 9): server guide, appendix A, steps A.1 to A.3. Then its
+`config`, with the lines of section 6: `notepad $HOME\.ssh\config` opens it,
+once the file exists (server guide, step 12b).
 
 **Check:** `Resolve-DnsName <server-name>` returns a `100.` address (on
 Windows, test names this way, not with `nslookup`); then, from another

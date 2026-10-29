@@ -763,8 +763,11 @@ the git history is to this repository.
 
 ### 12b. A short name for the server
 
-On your computer, a file named `config` in the `.ssh` folder of your home
-folder lets you type `ssh server` instead of the user and the address:
+A file named `config` in the `.ssh` folder of your home folder lets you type
+`ssh server` instead of the user and the address. It belongs to the computer
+you connect from, not to the server, so every computer you connect from needs
+its own. These are its lines, with your values in place of `<lan-ip>` and
+`<user>`:
 
 ```text
 Host server
@@ -772,21 +775,36 @@ Host server
     User <user>
 ```
 
-- **Ubuntu:** `nano ~/.ssh/config`, paste the lines with your values, save
-  with Ctrl+O and Enter, and leave with Ctrl+X.
-- **Windows:** create the file with Notepad, which saves it as UTF-8. Windows
-  PowerShell's `>` would write UTF-16, which SSH cannot read.
+If the file already exists, add the lines at its end and keep what it has.
+
+- **Ubuntu,** in the terminal:
+
+  ```bash
+  ls -la ~/.ssh          # read-only: whether a config is already there
+  nano ~/.ssh/config     # opens it, or creates it when you save
+  ```
+
+  Paste the lines with Ctrl+Shift+V, save with Ctrl+O and Enter, and leave
+  with Ctrl+X.
+- **Windows,** in PowerShell, with Notepad, which saves the file as UTF-8:
+  Windows PowerShell's `>` would write UTF-16, which SSH cannot read. The
+  second line creates an empty file only if there is none, so that Notepad
+  does not name it `config.txt`:
 
   ```powershell
+  Get-ChildItem $HOME\.ssh      # read-only: whether a config is already there
   if (-not (Test-Path $HOME\.ssh\config)) { New-Item -ItemType File $HOME\.ssh\config }
   notepad $HOME\.ssh\config
   ```
 
-The Tailscale guide points this name at the server's Tailscale address, so
-that it also works from outside the house.
+  Paste the lines with Ctrl+V, save them with *File → Save*, and close
+  Notepad.
 
-**Check:** `ssh server` opens a session without asking for the user or the
-address.
+The same command opens the file whenever it has to change, as it does in the
+Tailscale guide, so that `server` also works from outside the house.
+
+**Check:** on each computer, `ssh server` opens a session without asking for
+the user or the address.
 
 ### 12c. Long commands: tmux
 
@@ -1072,6 +1090,7 @@ why each comes after a read-only check.
 | `ssh -v server` | Connects showing each step: which keys it offers, and why it fails |
 | `ssh-keygen -lf $HOME/.ssh/id_ed25519.pub` | Your key's fingerprint |
 | `ssh-keygen -R <lan-ip>` | Forgets a server's host key, after a reinstall |
+| `nano ~/.ssh/config`; on Windows, `notepad $HOME\.ssh\config` | Opens the file where the short names are (step 12b) |
 
 ### tmux
 
