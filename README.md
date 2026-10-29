@@ -45,9 +45,10 @@ when the house loses power
 | Guide | Host | Status |
 |---|---|---|
 | [Install Ubuntu Server on a single-OS host](docs/guides/install-ubuntu-server.md) | Service host | First run in October 2026, steps 1 to 11; without Secure Boot (ADR-011) |
-| [Install Ubuntu Desktop on the GPU workstation](docs/guides/install-ubuntu-gpu-workstation.md) | GPU workstation | First run on 2026-10-21, sections 1 to 20 |
+| [Install Ubuntu Desktop on the GPU workstation](docs/guides/install-ubuntu-gpu-workstation.md) | GPU workstation | First run on 2026-10-21, sections 1 to 20; section 22 on 2026-10-28 |
 | [Validate the GPU workstation before it trains for real](docs/guides/validate-gpu-workstation.md) | GPU workstation | First run on 2026-10-22, sections 1 to 9 and 11, memory stress repeated over 40 GiB; section 10 pending |
-| [Join the hosts and your computers with Tailscale](docs/guides/install-tailscale.md) | Both hosts and your computers | Written on 2026-10-25; first run pending |
+| [Join the hosts and your computers with Tailscale](docs/guides/install-tailscale.md) | Both hosts and your computers | First run on 2026-10-28, sections 1 to 7; the phone (section 8) pending |
+| [Download a public imaging dataset from IDC onto the workstation](docs/guides/download-a-dataset-from-idc.md) | GPU workstation | Written on 2026-10-29; the download has not run yet |
 
 Planned: Docker, ntfy, liveness checks, Forgejo and its runner, experiment
 tracking, operating long runs, backups, and monitoring.

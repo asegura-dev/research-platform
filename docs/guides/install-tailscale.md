@@ -7,7 +7,9 @@
 > workstation to Windows remotely is not covered yet.
 
 > **Status:** written on 2026-10-25, from the documentation and the source
-> code of Tailscale 1.104.2; not yet run.
+> code of Tailscale 1.104.2. First run on 2026-10-28, sections 1 to 7, with the
+> workstation, the service host and a Windows laptop; the phone (section 8) is
+> still to run. Revised from that run on 2026-10-29.
 
 Tailscale joins your devices in a private network of their own, a *tailnet*.
 Each device gets an address that starts with `100.` and a name, and reaches
@@ -197,8 +199,14 @@ Host server-lan
 
 The first `ssh server` asks for the server's fingerprint again, because SSH
 remembers hosts by the name it reaches them by, and this one is new. Answer as
-in the server guide's step 7b, with the fingerprint from your note. `server-lan`
-uses the address SSH already knows.
+in the server guide's step 7b, with the server's fingerprint from your note.
+On current clients (OpenSSH 8.5 or later, which leaves out Windows 10's), the
+question also says `This host key is known by the following other
+names/addresses:` and lists the LAN address (`[hashed name]` on Ubuntu): it is
+the key you accepted there. `server-lan` uses the address SSH already knows.
+
+`HostName` can also be the server's `100.` address instead of its name: it
+does not change while the server stays in the tailnet.
 
 **Check:** `ssh server` and `ssh server-lan` both open a session on the server.
 

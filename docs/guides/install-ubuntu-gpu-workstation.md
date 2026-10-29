@@ -13,8 +13,9 @@
 > 2026-10-13. First run on 2026-10-21, through section 20, with Ubuntu 24.04.5
 > LTS, kernel 7.0.0-38-generic, NVIDIA driver 580.178.04 (open modules, signed
 > by Canonical), Secure Boot on, and Windows 11 with BitLocker; rewritten from
-> that run on 2026-10-22. Sections 21 to 23 have not run yet. The wired port is
-> still to be checked: it reported DOWN, and the run used Wi-Fi.
+> that run on 2026-10-22. Section 22 ran on 2026-10-28 and was revised from it;
+> sections 21 and 23 have not run yet. The wired port is still to be checked:
+> it reported DOWN, and the run used Wi-Fi.
 
 > **History:** until that run, this guide put the SSD in a USB4 enclosure first,
 > as a trial before opening the PC. The enclosure disconnected, in Windows and
@@ -1211,6 +1212,7 @@ Desktop does not install an SSH server.
 ```bash
 sudo apt install openssh-server
 systemctl status ssh.socket --no-pager     # active (listening): sshd starts at the first connection
+sudo systemctl start ssh                   # starts it now, so that sshd -T works below
 ssh-import-id gh:<github-user>             # your public keys from GitHub into ~/.ssh/authorized_keys
 for k in /etc/ssh/ssh_host_*_key.pub; do ssh-keygen -lf "$k"; done   # this machine's host key fingerprints
 ```
@@ -1221,9 +1223,12 @@ connecting for the first time compares one of them. From another computer,
 and what the first connection asks, is in
 [appendix A of the server guide](install-ubuntu-server.md#appendix-a-connect-from-another-computer).
 
-Then refuse passwords. Read-only first: for each setting `sshd` keeps the first
-value it reads, and it reads the files in `/etc/ssh/sshd_config.d/` in name
-order:
+Then refuse passwords. Until `sshd` has started since the machine booted,
+`sshd -T` and `sshd -t` stop with *Missing privilege separation directory:
+/run/sshd*: that directory appears when it starts and goes when it stops, hence
+the `systemctl start` above. Read-only first: for each setting `sshd` keeps the
+first value it reads, and it reads the files in `/etc/ssh/sshd_config.d/` in
+name order:
 
 ```bash
 sudo sshd -T | grep -i '^passwordauthentication'    # effective value
@@ -1242,6 +1247,13 @@ From the other computer:
 ssh -o PubkeyAuthentication=no -o PreferredAuthentications=password <user>@<lan-ip>
 # expected: Permission denied (publickey)
 ```
+
+The first option keeps your key out of the attempt and the second asks for a
+password: the workstation must refuse before any password prompt. If it asks
+for one, do not type it; press Ctrl+C and look at the effective value again.
+Once the computer has a short name for the workstation (`workstation`, Tailscale
+guide, section 6), the same test is
+`ssh -o PubkeyAuthentication=no -o PreferredAuthentications=password workstation`.
 
 Access from outside the house comes with Tailscale, in its own guide.
 
@@ -1325,6 +1337,7 @@ that does not fix it, stop there and write down what you saw.
 | 20 | *Windows Boot Manager* is missing from the F11 menu | Choose the entry with the Windows disk's model: the firmware starts Windows' own fallback loader. |
 | 20 | Windows offers to format a disk | Always *Cancel*: it is the Ubuntu SSD, which Windows cannot read. |
 | 20 | A Windows restart lands in Ubuntu | Restart and choose *Windows Boot Manager* in the F11 menu. |
+| 22 | `sshd -T` or `sshd -t` prints *Missing privilege separation directory: /run/sshd* | `sshd` has not started since the machine booted: `sudo systemctl start ssh`, then repeat the command. |
 
 ### Going back to Windows only
 

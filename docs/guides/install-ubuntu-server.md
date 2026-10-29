@@ -17,7 +17,9 @@
 > 2026-10-25, and a typo in step 10's file stopped apt until that day. Revised
 > from that run on 2026-10-23 and 2026-10-25: SSH from the start (steps 7 and
 > 12, appendices A and B), the firmware without keys (step 8), and checks that
-> catch each of those misses.
+> catch each of those misses. Revised again on 2026-10-29 from the first days
+> of SSH use: step 7b, appendices A.1 and B, and two errors in *If something
+> goes wrong*.
 
 This guide installs Ubuntu Server as the only operating system on a machine
 that runs always-on services (in this platform: the mini PC that hosts
@@ -412,14 +414,20 @@ Are you sure you want to continue connecting (yes/no/[fingerprint])?
 
 The line before the question names the key type: `ED25519` on current clients,
 `ECDSA` on older ones such as Windows 10's. Paste the fingerprint of that type
-from your note as the answer, and SSH compares the two for you. If they match,
-it records the server in `~/.ssh/known_hosts` and goes on; from then on it
-checks the server by itself at every connection. If SSH answers
+from your note as the answer, and SSH compares the two for you. It is always a
+fingerprint of the machine you connect to, never one of the computer you type
+on. If they match, it records the server in `~/.ssh/known_hosts` and goes on;
+from then on it checks the server by itself at every connection. If SSH answers
 `Please type 'yes', 'no' or the fingerprint:`, they do not match: check that you
 pasted the fingerprint of the type it named; if it still does not match, answer
 `no`, and find out why before going on. If the question offers only
 `(yes/no)`, the client is too old to compare for you: compare the two by eye,
 and type `yes` only if they are identical.
+
+The server gives each login two minutes from the moment you connect, this
+question and your key's passphrase included. After that it closes the
+connection, and SSH prints `Connection closed` after accepting your answer.
+Connect again: the fingerprint is saved by then, and SSH does not ask.
 
 If your key has a passphrase, SSH asks for it next: that is your key's
 passphrase (appendix A.1), not the server's password. Then the prompt
@@ -883,11 +891,13 @@ stop there and write down what you saw.
 | 7, A | `Permission denied (publickey)` | This computer's key is not on the server, or the user name is wrong. Import the key (appendix A.3); `ssh -v <user>@<lan-ip>` shows which keys SSH offered. |
 | 7, A | `Please type 'yes', 'no' or the fingerprint:` after pasting a fingerprint | The pasted fingerprint is not the one the server presented. Paste the one of the type that SSH named (step 7b); if none matches, answer `no` and compare them at the server's screen (step 7a). |
 | 7, A | `Host key verification failed.` | The first-connection question was answered `no`, or left empty. Connect again and answer it (step 7b). |
+| 7, A | `Connection closed by <lan-ip> port 22` right after the fingerprint was accepted | The server waits two minutes for a login, and the question took longer. Connect again: the fingerprint is saved, and SSH does not ask again. |
 | 7 | `Connection timed out` or `No route to host` | The address is wrong, the server is off, or your computer is on another network. Read the address again at the server's screen (step 7a). |
 | 7 | `Connection refused` | The server answers but SSH is not listening. At its screen: `systemctl status ssh.socket ssh --no-pager`. |
 | 7 | `WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!` | The server was reinstalled, or another machine answers at that address. Compare its fingerprints at the server's screen (step 7a); only if they are the server's new ones, `ssh-keygen -R <lan-ip>` and connect again. |
 | 7 | `Enter passphrase for key` | Your key's passphrase (appendix A.1), not the server's password. |
 | Any | A pasted block stops after a line with `sudo` | The password prompt took the lines that followed. Run `sudo -v` alone, then paste again. |
+| Any | In PowerShell, `The token '&&' is not a valid statement separator in this version.` | The block is for Ubuntu's terminal, and Windows PowerShell ran none of it. Run it in the terminal of the machine it is meant for. |
 | Any | The terminal stops responding | The connection dropped. Close the window, or press Enter, then `~` and `.`, and connect again. Commands that must survive this go in tmux (step 12c). |
 | 7, 8 | `Platform is in Setup Mode`, or `db is empty` | The firmware holds no Secure Boot keys: step 8, *A firmware without keys*. |
 | 8 | The 2023 certificates are still missing after `fwupdmgr update` and a restart | Step 8, *If they are still missing*. |
@@ -932,10 +942,19 @@ accept the file it proposes, then type a passphrase twice.
   - **Ubuntu:** `ssh-add` keeps it unlocked until you log out, when the
     session runs an agent (`ssh-add -l` answers without *Could not open a
     connection*).
-  - **Windows:** the agent is off by default. Once, in PowerShell as
-    administrator: `Get-Service ssh-agent | Set-Service -StartupType Automatic`,
-    then `Start-Service ssh-agent`. Then `ssh-add` as yourself: Windows keeps
-    the key for your account, across restarts, until `ssh-add -D` removes it.
+  - **Windows:** the agent is off by default:
+    `Get-Service ssh-agent | Select-Object Status, StartType` answers
+    `Stopped` and `Disabled`. Once, in PowerShell as administrator:
+    `Get-Service ssh-agent | Set-Service -StartupType Automatic`, then
+    `Start-Service ssh-agent`. Then, as yourself (the account you use SSH
+    from), `ssh-add`, which asks for the passphrase one last time, and
+    `ssh-add -l`, which lists the key. Windows keeps it for that account,
+    across restarts, until `ssh-add -D` removes it.
+
+    From then on your Windows sign-in protects the key, not its passphrase:
+    anyone signed in as you can use it. Keep a password or PIN on the account,
+    lock the screen when you leave the computer, and keep its disk encrypted
+    (`manage-bde -status C:`, as administrator, says *Protection On*).
 
 `ssh-keygen` writes two files in the `.ssh` folder of your home folder:
 `id_ed25519`, the private half, which you never copy or send, and
@@ -1090,6 +1109,7 @@ why each comes after a read-only check.
 | `ssh -v server` | Connects showing each step: which keys it offers, and why it fails |
 | `ssh-keygen -lf $HOME/.ssh/id_ed25519.pub` | Your key's fingerprint |
 | `ssh-keygen -R <lan-ip>` | Forgets a server's host key, after a reinstall |
+| `ssh-keygen -lF <lan-ip>` | The fingerprint your computer saved for that address (step 7b) |
 | `nano ~/.ssh/config`; on Windows, `notepad $HOME\.ssh\config` | Opens the file where the short names are (step 12b) |
 
 ### tmux
