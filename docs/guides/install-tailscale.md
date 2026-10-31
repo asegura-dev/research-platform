@@ -332,8 +332,9 @@ retired one no longer appears in `tailscale status`.
 - **Firewall.** ufw is off on both hosts. If it is turned on one day, it will
   not filter what arrives over Tailscale: Tailscale puts its own rule first,
   and its access policy decides there.
-- **Docker,** when it comes: every port published on 127.0.0.1 only. Docker
-  sends published ports past the firewall
+- **Docker:** every port published on 127.0.0.1 only, the default that its
+  [guide](install-docker.md) sets. Docker sends published ports past the
+  firewall
   ([ADR-004](../adr/ADR-004-compute-and-always-on-services-on-separate-hosts.md)).
 
 ## If something goes wrong
@@ -355,9 +356,9 @@ stop there and write down what you saw.
 
 ## Next
 
-The services, each with its own guide: Docker, ntfy, healthchecks (the host
-heartbeat), Forgejo and its runner, and the experiment tracker. Each one is
-published with Tailscale Serve.
+The services, each with its own guide: [Docker](install-docker.md) first,
+then ntfy, healthchecks (the host heartbeat), Forgejo and its runner, and the
+experiment tracker. Each one is published with Tailscale Serve.
 
 ## References
 

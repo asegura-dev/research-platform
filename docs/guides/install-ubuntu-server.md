@@ -909,10 +909,10 @@ stop there and write down what you saw.
 
 ## Next
 
-In order: Tailscale (remote access without open ports, and this host by name
-from any computer that joins it), Docker, ntfy, healthchecks (the host
-heartbeat), Forgejo and its runner, and the experiment tracker. Each has its
-own guide.
+In order: [Tailscale](install-tailscale.md) (remote access without open
+ports, and this host by name from any computer that joins it),
+[Docker](install-docker.md), ntfy, healthchecks (the host heartbeat), Forgejo
+and its runner, and the experiment tracker. Each has its own guide.
 
 ## Appendix A. Connect from another computer
 

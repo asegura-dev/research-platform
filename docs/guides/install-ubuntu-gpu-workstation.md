@@ -14,8 +14,9 @@
 > LTS, kernel 7.0.0-38-generic, NVIDIA driver 580.178.04 (open modules, signed
 > by Canonical), Secure Boot on, and Windows 11 with BitLocker; rewritten from
 > that run on 2026-10-22. Section 22 ran on 2026-10-28 and was revised from it;
-> sections 21 and 23 have not run yet. The wired port is still to be checked:
-> it reported DOWN, and the run used Wi-Fi.
+> section 23 ran without problems by 2026-10-29; section 21 has not run yet.
+> The wired port is still to be checked: it reported DOWN, and the run used
+> Wi-Fi.
 
 > **History:** until that run, this guide put the SSD in a USB4 enclosure first,
 > as a trial before opening the PC. The enclosure disconnected, in Windows and
