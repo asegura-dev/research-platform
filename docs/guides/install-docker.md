@@ -6,7 +6,12 @@
 > their own guides. The workstation is not covered.
 
 > **Status:** written on 2026-10-30 from Docker's documentation, for Docker
-> Engine 29.9 (29.9.2, released on 2026-10-20). Not run yet.
+> Engine 29.9 (29.9.2, released on 2026-10-20). First run on 2026-10-30,
+> sections 1 to 6, with Docker Engine 29.9.2 and Compose 5.6.1: every check
+> passed. Revised from that run the same day: the workstation's test in
+> section 4 takes the server's addresses from the SSH `config`, because its
+> placeholders were pasted as they were, and section 5 compares the
+> container's start with the server's.
 
 Docker runs each service in a *container*: the service's program, isolated
 from the rest of the server, started from an *image* that the service's
@@ -34,13 +39,12 @@ Before pasting a block that has `sudo` after its first line, run `sudo -v`
 alone and type your password. In a new session, or 15 minutes after the last
 `sudo`, a password prompt would take the lines pasted after it.
 
-Placeholders used throughout; replace each one, angle brackets included:
+Placeholders, all of them for the services of section 7; replace each one,
+angle brackets included:
 
-- `<lan-ip>`: the server's address in the house's network, as in the server
-  guide.
-- `<server-name>`: the server's name in the tailnet, as in the Tailscale
-  guide.
-- `<service>`: a service's short name, such as `ntfy` (section 7).
+- `<service>`: a service's short name, such as `ntfy`.
+- `<image>`, `<version>`, `<host-port>` and `<container-port>`: a service's
+  image, the version to run, and its two ports, as its own guide gives them.
 
 Never commit addresses, names, tokens or topics to this repository. They go in
 your private note, or in the server's own files.
@@ -145,8 +149,9 @@ sudo docker run --rm hello-world                    # Hello from Docker!, and wh
 sudo ss -ltnp                                       # the same list as before: Docker listens on no port of its own
 ```
 
-The version matters: before 28.0, machines on the same local network could
-reach ports published on 127.0.0.1
+The first time, `gpg` also says that it created the folder `~/.gnupg`. The
+version matters: before 28.0, machines on the same local network could reach
+ports published on 127.0.0.1
 ([moby/moby#45610](https://github.com/moby/moby/issues/45610)).
 
 ## 3. Published ports on 127.0.0.1, and logs that rotate
@@ -246,15 +251,20 @@ curl -s http://127.0.0.1:8082 | grep -o '<title>.*</title>'    # the same
 sudo docker network inspect port-test --format '{{index .Options "com.docker.network.bridge.host_binding_ipv4"}}'   # 127.0.0.1
 ```
 
-Then at the workstation, in a terminal of its own, not in the SSH session:
+Then at the workstation, in a terminal of its own, not in the SSH session. The
+first two lines take the server's two addresses from the workstation's SSH
+`config` (Tailscale guide, section 6), without connecting, so that the block
+pastes as it is:
 
 ```bash
-curl -s -m 5 http://<lan-ip>:8081 || echo unreachable                  # unreachable
-curl -s -m 5 http://<lan-ip>:8082 || echo unreachable                  # unreachable
-curl -s -m 5 http://<lan-ip>:8083 | grep -o '<title>.*</title>'        # <title>Welcome to nginx!</title>
-curl -s -m 5 http://<server-name>:8081 || echo unreachable             # unreachable, through the tailnet too
-curl -s -m 5 http://<server-name>:8082 || echo unreachable             # unreachable
-curl -s -m 5 http://<server-name>:8083 | grep -o '<title>.*</title>'   # <title>Welcome to nginx!</title>
+LAN=$(ssh -G server-lan | awk '/^hostname /{print $2}'); echo "$LAN"   # the server's address in the house's network
+TS=$(ssh -G server | awk '/^hostname /{print $2}'); echo "$TS"         # its name, or its 100. address, in the tailnet
+curl -s -m 5 http://$LAN:8081 || echo unreachable                     # unreachable
+curl -s -m 5 http://$LAN:8082 || echo unreachable                     # unreachable
+curl -s -m 5 http://$LAN:8083 | grep -o '<title>.*</title>'           # <title>Welcome to nginx!</title>
+curl -s -m 5 http://$TS:8081 || echo unreachable                      # unreachable, through the tailnet too
+curl -s -m 5 http://$TS:8082 || echo unreachable                      # unreachable
+curl -s -m 5 http://$TS:8083 | grep -o '<title>.*</title>'            # <title>Welcome to nginx!</title>
 ```
 
 The control shows what ADR-004 prevents: a port open on every interface
@@ -298,14 +308,22 @@ The reboot closes your session. Connect again a minute or two later, run
 ```bash
 sudo docker ps --format '{{.Names}}  {{.Status}}  {{.Ports}}'   # reboot-test  Up …  127.0.0.1:8081->80/tcp
 curl -s http://127.0.0.1:8081 | grep -o '<title>.*</title>'     # <title>Welcome to nginx!</title>
+uptime -s                                                       # when the server started, in local time
+date -d "$(sudo docker inspect reboot-test --format '{{.State.StartedAt}}')" '+%F %T'   # when Docker started reboot-test: seconds later
 sudo docker stop reboot-test
 ```
+
+`Up …` alone would also describe a container that never stopped. The two times
+show that the server did start again, and that Docker started the container
+after it.
 
 `unless-stopped` starts a container again after every reboot, unless you
 stopped it yourself: then it stays stopped, reboots included, until you start
 it.
 
-**Check:** after the reboot, `reboot-test` was up by itself, on 127.0.0.1.
+**Check:** after the reboot, `reboot-test` was up by itself, on 127.0.0.1,
+and Docker started it a few seconds after the server (7 seconds on the first
+run).
 
 ## 6. Clean up after the tests
 
@@ -410,7 +428,7 @@ stop there and write down what you saw.
 | 4 | `ss` shows `0.0.0.0` or `[::]` for 8081 | Stop the three test containers at once. Docker is not using `daemon.json`: repeat section 3's check. |
 | 4 | `ss` shows `0.0.0.0` or `[::]` for 8082 only | Stop the three test containers at once. The option name inside `default-network-opts` is wrong, or the `port-test` network was created before section 3's restart. Compare the file with section 3, restart Docker, remove the network with `sudo docker network rm port-test`, and create it again. |
 | 4 | From the workstation, 8081 or 8082 shows nginx's title | The port is open on the network: stop the three test containers at once, and do not go on until section 3's check passes. |
-| 4 | From the workstation, the control (8083) does not answer either | Stop the three test containers first. The test cannot see an open port, so the other results prove nothing. Check the address (`ssh server-lan` uses the same `<lan-ip>`) and the name (`tailscale status`), then start section 4 again; its `network create` line then says that `port-test` already exists, which is fine. |
+| 4 | From the workstation, the control (8083) does not answer either | Stop the three test containers first. The test cannot see an open port, so the other results prove nothing. The test takes its two addresses from `server-lan` and `server`: check that `ssh server-lan` and `ssh server` open a session from the workstation, then start section 4 again; its `network create` line then says that `port-test` already exists, which is fine. |
 | 5 | After the reboot, `reboot-test` is not listed | `systemctl is-enabled docker` must print `enabled`. `sudo docker ps -a` shows the container's state, and `sudo docker inspect reboot-test --format '{{.HostConfig.RestartPolicy.Name}}'` must print `unless-stopped`. |
 
 ## Next

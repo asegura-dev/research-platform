@@ -36,7 +36,7 @@ The platform is ready for a project's real work when every item below holds.
 **Services**, each listening on 127.0.0.1 and published only through Tailscale
 Serve ([ADR-004](adr/ADR-004-compute-and-always-on-services-on-separate-hosts.md))
 
-- [ ] Docker runs the services, with every port published on 127.0.0.1 only,
+- [x] Docker runs the services, with every port published on 127.0.0.1 only,
   and they come back after a reboot
   ([Docker guide](guides/install-docker.md)).
 - [ ] ntfy delivers a notification to the phone, from a training or from any
