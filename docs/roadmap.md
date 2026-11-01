@@ -7,7 +7,11 @@ there is a choice worth keeping.
 
 ## Ready to operate
 
-The platform is ready for a project's real work when every item below holds.
+The platform is ready for a project's real work, starting with its first long
+training, when every item below holds. The work left goes in this order: the
+instance-data guard, the service host's heartbeat, long runs, backups, ntfy,
+and one short training through all of it. The validation's open sections and
+the phone's access go alongside.
 
 **Hosts**
 
@@ -23,7 +27,8 @@ The platform is ready for a project's real work when every item below holds.
 - [ ] The workstation is validated: memory, SSD and GPUs pass their tests, two
   trainings hold for three hours, and its draw from the wall is known
   ([validation guide](guides/validate-gpu-workstation.md); section 10 waits
-  for a meter).
+  for a meter). Sections 7 to 9 run again with the thesis dataset once it is
+  converted, before the RTX 4070's role is decided.
 
 **Access**
 
@@ -33,32 +38,38 @@ The platform is ready for a project's real work when every item below holds.
   [ADR-012](adr/ADR-012-ssh-over-tailscale-with-a-key-per-computer.md);
   workstation guide, section 22).
 
+**Repositories**
+
+- [ ] Every repository lives on GitHub, private ones included
+  ([ADR-006](adr/ADR-006-public-repositories-on-github-private-on-forgejo.md),
+  [ADR-013](adr/ADR-013-github-not-a-forge-at-home-for-private-code.md)), and
+  refuses instance data: a hook checks each commit before it is made, and a
+  workflow checks each push.
+
 **Services**, each listening on 127.0.0.1 and published only through Tailscale
 Serve ([ADR-004](adr/ADR-004-compute-and-always-on-services-on-separate-hosts.md))
 
-- [x] Docker runs the services, with every port published on 127.0.0.1 only,
-  and they come back after a reboot
+- [x] Docker is installed, publishes every port on 127.0.0.1 by default, and
+  brings its containers back after a reboot
   ([Docker guide](guides/install-docker.md)).
 - [ ] ntfy delivers a notification to the phone, from a training or from any
-  long command.
-- [ ] Each host pings healthchecks.io, and its silence arrives by email
-  ([ADR-007](adr/ADR-007-liveness-is-watched-from-outside.md)).
-- [ ] Forgejo hosts the private repositories, and its runner builds them,
-  the thesis document included
-  ([ADR-005](adr/ADR-005-forgejo-not-gitlab-for-private-code.md),
-  [ADR-006](adr/ADR-006-public-repositories-on-github-private-on-forgejo.md)).
-- [ ] The experiment tracker records a run's parameters and metrics (MLflow or
-  Aim, an open decision).
+  long command. Who may publish and read is decided before it goes live.
 
 **Operations**
 
-- [ ] Irreplaceable data has a copy away from home (backups, an open
-  decision).
+- [ ] The service host pings healthchecks.io, and its silence arrives by email
+  ([ADR-007](adr/ADR-007-liveness-is-watched-from-outside.md)). The ping also
+  fails when the host stops looking after itself: apt broken, automatic
+  updates stopped, or a reboot pending for days.
 - [ ] A long run can be started, watched, and resumed from its last checkpoint
-  after a cut (guide for operating long runs).
-- [ ] One short training goes through all of it: its code from Forgejo, its
-  start and end announced by ntfy, its heartbeat in healthchecks.io, and its
-  metrics in the tracker.
+  after a cut. It pings healthchecks.io as it goes, and records the
+  environment it ran in (guide for operating long runs).
+- [ ] Results, the private note and the service host's `/srv` have a copy away
+  from home, and a restore has been tested (backups, an open decision).
+- [ ] One short training goes through all of it: its code from a private
+  repository at a recorded commit, its environment recorded, its heartbeat in
+  healthchecks.io, a cut on purpose and a resume from its checkpoint, its
+  results in the backup, and its start and end announced by ntfy.
 
 ## After it operates
 
@@ -67,6 +78,9 @@ Serve ([ADR-004](adr/ADR-004-compute-and-always-on-services-on-separate-hosts.md
   reaches the phone through ntfy when a GPU or the CPU runs hot, a disk is
   filling up, or a host stops reporting. The tools, Prometheus and Grafana or
   something lighter, are for its guide to choose.
+- [ ] **An experiment tracker, if a project needs one.** nnU-Net logs every
+  epoch, and a project keeps its own record of runs. A tracker on the service
+  host (MLflow or Aim) comes only when comparing runs needs more.
 
 ## Refused
 
@@ -84,3 +98,8 @@ Serve ([ADR-004](adr/ADR-004-compute-and-always-on-services-on-separate-hosts.md
   house's internet would depend on the service host.
 - **Notebooks, language models or other heavy work on the service host.** It
   has 4 cores, 16 GB and no GPU: that work belongs to the workstation.
+- **A forge at home (Forgejo) for private code.** Private repositories live on
+  GitHub with the public ones
+  ([ADR-013](adr/ADR-013-github-not-a-forge-at-home-for-private-code.md)): a
+  forge here would add a service, a CI runner and backups for what GitHub
+  already gives.

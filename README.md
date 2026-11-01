@@ -2,8 +2,7 @@
 
 Infrastructure for reproducible machine-learning research on hardware you own:
 a GPU workstation, an always-on service host, and the shared services every
-project consumes (remote access, notifications, liveness checks, code hosting
-and experiment tracking).
+project consumes (remote access, notifications and liveness checks).
 
 This repository publishes the **design** of the platform: guides, decision
 records and, later, scripts and configuration templates. It never contains an
@@ -20,10 +19,13 @@ tokens. Each host keeps those outside git.
 | Role | What it does | Designed on |
 |---|---|---|
 | GPU workstation | Training and evaluation, also used at its own screen. Ubuntu Desktop by default on its own internal SSD, Windows on its own disks | Ryzen 9 7900X, 64 GB, RTX 5080 16 GB and RTX 4070 12 GB |
-| Service host | Always-on services: code hosting and CI, notifications, experiment tracking | Ryzen 3 4300U, 16 GB, 512 GB SSD |
+| Service host | Always-on services, starting with notifications | Ryzen 3 4300U, 16 GB, 512 GB SSD |
 
-Liveness is the one thing watched from outside, because it has to keep working
-when the house loses power
+Code lives on GitHub, public and private
+([ADR-006](docs/adr/ADR-006-public-repositories-on-github-private-on-forgejo.md),
+[ADR-013](docs/adr/ADR-013-github-not-a-forge-at-home-for-private-code.md)),
+and liveness is watched from outside, because it has to keep working when the
+house loses power
 ([ADR-007](docs/adr/ADR-007-liveness-is-watched-from-outside.md)).
 
 ## Principles
@@ -32,8 +34,9 @@ when the house loses power
   ping URLs and tokens never enter git.
 - **Private by network.** Services listen on loopback and are reached only
   through Tailscale; nothing is published to the internet.
-- **Outside only where it must be.** A third-party service is used only for a
-  job that cannot be done from home, and its decision record says why.
+- **Outside by decision, not by default.** A third-party service is used only
+  when its decision record says why it does the job better than a service at
+  home, what it is trusted with, and when the job would come home.
 - **Read-only before destructive.** Every step that erases, moves or rewrites is
   preceded by checks that change nothing.
 - **Projects do not depend on the platform.** They reach it through
@@ -51,8 +54,7 @@ when the house loses power
 | [Download a public imaging dataset from IDC onto the workstation](docs/guides/download-a-dataset-from-idc.md) | GPU workstation | First run on 2026-10-29: downloaded and verified |
 | [Install Docker on the service host](docs/guides/install-docker.md) | Service host | First run on 2026-10-30, sections 1 to 6: every check passed |
 
-Planned: ntfy, liveness checks, Forgejo and its runner, experiment tracking,
-operating long runs, backups, and monitoring.
+What comes next, and in what order, is in the [roadmap](docs/roadmap.md).
 
 ## Decisions
 

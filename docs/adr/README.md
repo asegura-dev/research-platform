@@ -9,6 +9,11 @@ known bugs) go stale faster than code, so each record dates its facts and names
 the event that should reopen it. New records start from
 [TEMPLATE.md](TEMPLATE.md).
 
+A record is never rewritten. When a decision changes, a new record replaces
+it, in whole or in part, and the old one gets a dated note under its Status
+that says what replaced it and what still stands. Corrections are dated notes
+too.
+
 ### 001 - Ubuntu 24.04 LTS on every host, until 26.04 has matured
 
 [`ADR-001-ubuntu-24-04-lts-on-every-host.md`](ADR-001-ubuntu-24-04-lts-on-every-host.md)
@@ -38,28 +43,32 @@ training.
 
 [`ADR-004-compute-and-always-on-services-on-separate-hosts.md`](ADR-004-compute-and-always-on-services-on-separate-hosts.md)
 
-The mini PC hosts code, CI, notifications and tracking. Heavy data never leaves
-the workstation, and services are reachable only through Tailscale.
+The mini PC hosts the services that must stay up while the workstation reboots
+or runs Windows. Heavy data never leaves the workstation, and services are
+reachable only through Tailscale. Code hosting and CI left the mini PC with
+ADR-013.
 
 ### 005 - Forgejo, not GitLab, for private code
 
 [`ADR-005-forgejo-not-gitlab-for-private-code.md`](ADR-005-forgejo-not-gitlab-for-private-code.md)
 
 GitLab would take half of the mini PC's memory and every core; Forgejo covers
-CI, boards and review within its means.
+CI, boards and review within its means. Superseded by ADR-013: no forge runs at
+home.
 
 ### 006 - Public repositories on GitHub, private ones on Forgejo
 
 [`ADR-006-public-repositories-on-github-private-on-forgejo.md`](ADR-006-public-repositories-on-github-private-on-forgejo.md)
 
 A repository lives where its readers are. Public repositories publish the
-design, never the instance. Names of the first four repositories.
+design, never the instance. Names of the first four repositories. Where private
+repositories live is superseded by ADR-013: on GitHub too.
 
 ### 007 - Liveness is watched from outside, because the house can go dark
 
 [`ADR-007-liveness-is-watched-from-outside.md`](ADR-007-liveness-is-watched-from-outside.md)
 
-healthchecks.io, the one deliberate exception to owned hardware. Two levels of
+healthchecks.io, because a watcher at home dies with the house. Two levels of
 heartbeat, and pings that carry no identifiers.
 
 ### 008 - A service host comes back on its own
@@ -104,6 +113,15 @@ A login needs the tailnet and a key. Tailscale SSH is refused: its check mode
 asks for a browser sign-in every 12 hours and hangs VS Code, and its accept
 mode leaves the Tailscale account as the only lock.
 
+### 013 - GitHub, not a forge at home, for private code
+
+[`ADR-013-github-not-a-forge-at-home-for-private-code.md`](ADR-013-github-not-a-forge-at-home-for-private-code.md)
+
+Private repositories live on GitHub with the public ones, their CI on GitHub
+Actions. A forge at home would load the least protected host with a service, a
+runner and backups. Supersedes ADR-005, and ADR-006 where it put private
+repositories on Forgejo.
+
 ## Open decisions
 
 Each one gets its record when the work reaches it. Operational choices that
@@ -115,5 +133,5 @@ is handled during an install) are recorded in that guide's decisions table.
 | Role of the RTX 4070: second training GPU, or local inference (Ollama) | Validation guide, sections 7 and 9, repeated with the real dataset |
 | GPU power limits applied at every start | Validation guide, sections 8 and 10 |
 | Switching to Windows remotely | A later revision of the Tailscale guide |
-| Experiment tracker: MLflow or Aim | Tracker guide |
+| Experiment tracker: whether one is needed, then MLflow or Aim | Tracker guide, if a project's own record of runs falls short ([roadmap](../roadmap.md)) |
 | A copy of irreplaceable data away from home | Backups guide |

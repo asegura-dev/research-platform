@@ -434,9 +434,8 @@ stop there and write down what you saw.
 ## Next
 
 ntfy, the first service, in its own guide: its folder in `/srv/ntfy`, its port
-on 127.0.0.1, and Tailscale Serve to publish it in the tailnet. Then
-healthchecks (the host heartbeat), Forgejo and its runner, and the experiment
-tracker.
+on 127.0.0.1, and Tailscale Serve to publish it in the tailnet. What comes
+before it, and after, is in the [roadmap](../roadmap.md).
 
 ## References
 

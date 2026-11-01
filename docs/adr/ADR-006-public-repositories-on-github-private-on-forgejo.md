@@ -4,6 +4,14 @@
 
 Accepted on 2026-10-09, together with the names of the first repositories.
 
+Superseded where it puts private repositories on Forgejo by
+[ADR-013](ADR-013-github-not-a-forge-at-home-for-private-code.md) on
+2026-10-31: they live on GitHub too. The first repositories keep their names
+and visibility, all on GitHub, and one that is published changes its
+visibility, not its home. The rest of this record stands: public repositories
+publish the design, never the instance, and a published project installs
+without the platform.
+
 ## Context
 
 Forgejo is reachable only inside the tailnet

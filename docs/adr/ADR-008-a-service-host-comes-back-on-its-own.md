@@ -10,6 +10,11 @@ Its acceptance test, a real power cut, passed on the service host in October
 Secure Boot point for that host, whose firmware offers only a test platform
 key and the 2011 certificates. The rest of this record stands.
 
+On 2026-10-31,
+[ADR-013](ADR-013-github-not-a-forge-at-home-for-private-code.md) put
+private repositories and CI on GitHub, so the Forgejo, private repositories
+and CI logs named below will not be on the service host.
+
 ## Context
 
 The mini PC runs unattended. After a power cut, a kernel update or a hang, it

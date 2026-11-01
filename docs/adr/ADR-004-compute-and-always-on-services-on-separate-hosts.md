@@ -5,6 +5,14 @@
 Accepted on 2026-10-09, when the services every project needs (code hosting, CI,
 notifications, experiment tracking) had to be placed somewhere.
 
+On 2026-10-31,
+[ADR-013](ADR-013-github-not-a-forge-at-home-for-private-code.md) took code
+hosting and CI off the service host: private repositories live on GitHub,
+tests that need no GPU run on GitHub's runners, and those that need one run
+by hand, with no runner on the workstation. The experiment tracker waits
+until a project needs more than its own record of runs
+([roadmap](../roadmap.md)). The rest of this record stands.
+
 ## Context
 
 Two machines are available:

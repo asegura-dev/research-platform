@@ -356,9 +356,9 @@ stop there and write down what you saw.
 
 ## Next
 
-The services, each with its own guide: [Docker](install-docker.md) first,
-then ntfy, healthchecks (the host heartbeat), Forgejo and its runner, and the
-experiment tracker. Each one is published with Tailscale Serve.
+[Docker](install-docker.md), for the services on the service host. Each
+service is published with Tailscale Serve. What follows, and in what order, is
+in the [roadmap](../roadmap.md).
 
 ## References
 

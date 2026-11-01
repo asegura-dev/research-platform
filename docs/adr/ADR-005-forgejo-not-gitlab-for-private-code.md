@@ -4,6 +4,11 @@
 
 Accepted on 2026-10-09, once the mini PC's hardware was known.
 
+Superseded by
+[ADR-013](ADR-013-github-not-a-forge-at-home-for-private-code.md) on
+2026-10-31: private repositories live on GitHub with the public ones, and no
+forge runs at home. This record weighed only options at home.
+
 ## Context
 
 Private repositories need more than storage: CI for tests and linters, issues

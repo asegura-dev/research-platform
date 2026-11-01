@@ -5,6 +5,15 @@
 Accepted on 2026-10-09, as the answer to "what tells me the platform died
 without warning?".
 
+Corrected on 2026-10-31: the decision below calls healthchecks.io the
+platform's one deliberate exception to owned hardware, but it is not the only
+one. GitHub holds every repository
+([ADR-006](ADR-006-public-repositories-on-github-private-on-forgejo.md),
+[ADR-013](ADR-013-github-not-a-forge-at-home-for-private-code.md)),
+Tailscale's coordination service and its sign-in provider admit every device
+to the tailnet, and OneDrive syncs files. healthchecks.io is the one whose job
+cannot be done at home. The rest of this record stands.
+
 ## Context
 
 ntfy on the mini PC can announce what happens on the platform, but not its own

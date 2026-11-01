@@ -22,8 +22,8 @@
 > goes wrong*.
 
 This guide installs Ubuntu Server as the only operating system on a machine
-that runs always-on services (in this platform: the mini PC that hosts
-Forgejo, the CI runner, ntfy and the experiment tracker).
+that runs always-on services (in this platform: the mini PC, which runs ntfy
+and the other services in the [roadmap](../roadmap.md)).
 
 After the install, the machine is used from another computer, over SSH. If you
 have never used SSH, read step 7 slowly: it shows what you will see and what
@@ -909,10 +909,10 @@ stop there and write down what you saw.
 
 ## Next
 
-In order: [Tailscale](install-tailscale.md) (remote access without open
-ports, and this host by name from any computer that joins it),
-[Docker](install-docker.md), ntfy, healthchecks (the host heartbeat), Forgejo
-and its runner, and the experiment tracker. Each has its own guide.
+[Tailscale](install-tailscale.md) (remote access without open ports, and this
+host by name from any computer that joins it), then
+[Docker](install-docker.md). What follows, and in what order, is in the
+[roadmap](../roadmap.md).
 
 ## Appendix A. Connect from another computer
 
