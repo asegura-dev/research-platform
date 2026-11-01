@@ -1,0 +1,33 @@
+# Public values that look like instance data, for check-instance-data.py.
+#
+# One value per line, exactly as it appears in the repository; case does not
+# matter. Each one says above it what it is and where it appears. Add a value
+# here only when it is public on purpose, in a commit of its own.
+
+# Ubuntu's image-signing contact, in the output of gpg --verify
+# (server guide, step 3; workstation guide, section 4).
+cdimage@ubuntu.com
+
+# Docker's release key: its owner and its fingerprint (Docker guide, section 2).
+docker@docker.com
+9DC858229FC7DD38854AE2D88D81803C0EBFCD88
+
+# UEFI's global-variable GUID, part of the name of every firmware variable
+# (server guide, step 8).
+8be4df61-93ca-11d2-aa0d-00e098032b8c
+
+# md5 of the Medical Segmentation Decathlon's Task09_Spleen.tar
+# (validation guide, section 6).
+410d4a301da4e5b2f6f86ec3ddba524e
+
+# md5 of its Task04_Hippocampus.tar, in the history of the workstation guide
+# (2cc81c2 to b33eab7).
+9d24dba78a72977dbd1d2e110310f31b
+
+# SHA-256 of PSMA-PET-CT-Lesions' clinical table, from TCIA's page
+# (dataset guide, section 6).
+737bf9666814a2f90c7201f42ae2f0a2f8e049901a3773b322fa4182b89fbb99
+
+# The commit of actions/checkout v7.0.1 that the workflow is pinned to
+# (.github/workflows/checks.yml).
+3d3c42e5aac5ba805825da76410c181273ba90b1

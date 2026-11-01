@@ -44,7 +44,8 @@ the phone's access go alongside.
   ([ADR-006](adr/ADR-006-public-repositories-on-github-private-on-forgejo.md),
   [ADR-013](adr/ADR-013-github-not-a-forge-at-home-for-private-code.md)), and
   refuses instance data: a hook checks each commit before it is made, and a
-  workflow checks each push.
+  workflow checks each push
+  ([guard guide](guides/set-up-the-instance-data-guard.md)).
 
 **Services**, each listening on 127.0.0.1 and published only through Tailscale
 Serve ([ADR-004](adr/ADR-004-compute-and-always-on-services-on-separate-hosts.md))

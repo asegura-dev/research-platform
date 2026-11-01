@@ -1,0 +1,25 @@
+# Runs on every push and pull request: the instance-data guard reads every
+# commit of every branch, and the link check reads every Markdown file
+# (docs/guides/set-up-the-instance-data-guard.md).
+name: checks
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      # Pinned to a commit, so that the action cannot change under this
+      # workflow; the commit is listed in scripts/instance-data-allow.txt.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: No instance data in any commit
+        run: python3 scripts/check-instance-data.py --history
+      - name: Every relative link and anchor resolves
+        run: python3 scripts/check-links.py

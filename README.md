@@ -5,9 +5,9 @@ a GPU workstation, an always-on service host, and the shared services every
 project consumes (remote access, notifications and liveness checks).
 
 This repository publishes the **design** of the platform: guides, decision
-records and, later, scripts and configuration templates. It never contains an
-**instance** of it: no hostnames, addresses, notification topics, ping URLs or
-tokens. Each host keeps those outside git.
+records, the scripts that guard them and, later, configuration templates. It
+never contains an **instance** of it: no hostnames, addresses, notification
+topics, ping URLs or tokens. Each host keeps those outside git.
 
 > **Status:** early. Guides are written from official documentation, and each
 > one says whether it has been run end to end on real hardware. The
@@ -31,7 +31,9 @@ house loses power
 ## Principles
 
 - **Publish the design, never the instance.** Real names, addresses, topics,
-  ping URLs and tokens never enter git.
+  ping URLs and tokens never enter git. A guard checks every commit before it
+  is made, and every push
+  ([guide](docs/guides/set-up-the-instance-data-guard.md)).
 - **Private by network.** Services listen on loopback and are reached only
   through Tailscale; nothing is published to the internet.
 - **Outside by decision, not by default.** A third-party service is used only
@@ -53,6 +55,7 @@ house loses power
 | [Join the hosts and your computers with Tailscale](docs/guides/install-tailscale.md) | Both hosts and your computers | First run on 2026-10-28, sections 1 to 7; the phone (section 8) pending |
 | [Download a public imaging dataset from IDC onto the workstation](docs/guides/download-a-dataset-from-idc.md) | GPU workstation | First run on 2026-10-29: downloaded and verified |
 | [Install Docker on the service host](docs/guides/install-docker.md) | Service host | First run on 2026-10-30, sections 1 to 6: every check passed |
+| [Set up the instance-data guard in a clone](docs/guides/set-up-the-instance-data-guard.md) | Each computer where you commit | Written on 2026-11-01; not run yet |
 
 What comes next, and in what order, is in the [roadmap](docs/roadmap.md).
 

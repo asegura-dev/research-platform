@@ -1,0 +1,4 @@
+#!/bin/sh
+# Refuses a commit message that carries instance data
+# (docs/guides/set-up-the-instance-data-guard.md).
+exec python3 scripts/check-instance-data.py --message "$1"

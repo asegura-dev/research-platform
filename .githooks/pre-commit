@@ -1,0 +1,5 @@
+#!/bin/sh
+# Refuses a commit whose staged changes carry instance data: in the lines it
+# adds, the names of its files or its author's address
+# (docs/guides/set-up-the-instance-data-guard.md).
+exec python3 scripts/check-instance-data.py --staged
