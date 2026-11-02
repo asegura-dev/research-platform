@@ -6,9 +6,12 @@
 > push. Section 2 is repeated in every clone, and section 3 on every computer.
 > The thesis repositories take the guard when they are created.
 
-> **Status:** written on 2026-11-01. Its script was tested against this
-> repository's whole history and against a sample of each rule; the guide has
-> not run yet on the workstation.
+> **Status:** written on 2026-11-01, and first run the same day on the
+> workstation, sections 1 to 5: the list was generated as section 3 shows,
+> every test of section 4 passed, the guard's own commit went through its
+> hooks, and the workflow's first run on GitHub was green. Revised from that
+> run: section 3 generates most of the list, and section 2 shows the hooks'
+> mode as Ubuntu prints it.
 
 This repository publishes the design of the platform, never its instance
 ([ADR-006](../adr/ADR-006-public-repositories-on-github-private-on-forgejo.md)):
@@ -87,7 +90,7 @@ configuration. That setting is not part of the repository: every clone needs
 it once, and a new clone of the same repository needs it again.
 
 ```bash
-ls -l .githooks                   # commit-msg and pre-commit, both -rwxr-xr-x
+ls -l .githooks                   # commit-msg and pre-commit, both with x: -rwxrwxr-x on Ubuntu
 git config core.hooksPath         # nothing yet
 ```
 
@@ -109,12 +112,13 @@ per line, and a line that starts with `#` is a comment. Every clone on this
 computer uses it, and no `git add` can take it, because it is outside every
 repository. Case does not matter.
 
-What goes in, copied from your private note:
+What goes in:
 
 - each host's and each computer's name;
 - the tailnet's name;
 - the hosts' addresses, in the house and in the tailnet (their shapes are
   caught already; listing them costs nothing);
+- the name of the house's Wi-Fi network;
 - your personal e-mail address;
 - any other value that a guide sends to your private note and that is not a
   secret.
@@ -129,19 +133,48 @@ What stays out:
 - **Values shorter than four characters:** they would match too much; the
   script skips them and says so.
 
-Create the file, readable by you only, and open it:
+Create the file, readable by you only:
 
 ```bash
 mkdir -p ~/.config/research-platform
 chmod 700 ~/.config/research-platform
 touch ~/.config/research-platform/instance-values.txt
 chmod 600 ~/.config/research-platform/instance-values.txt
+```
+
+On the workstation, this block writes most of the list from what the computer
+already knows: each device's name in the tailnet, the tailnet's name, the
+server's and the workstation's addresses in the house, and the Wi-Fi network.
+It adds to the end of the file and prints only how many values the file has,
+so no value shows on the screen:
+
+```bash
+F=~/.config/research-platform/instance-values.txt
+{
+  echo "# devices: their names in the tailnet"
+  tailscale status --json | python3 -c 'import json, sys; s = json.load(sys.stdin); print("\n".join(p["DNSName"].split(".")[0] for p in [s["Self"], *(s.get("Peer") or {}).values()] if p.get("DNSName")))'
+  echo "# the tailnet"
+  tailscale status --json | python3 -c 'import json, sys; print(json.load(sys.stdin)["CurrentTailnet"]["MagicDNSSuffix"])'
+  echo "# addresses in the house: the server, then this computer"
+  ssh -G server-lan | awk '/^hostname /{print $2}'
+  hostname -I | tr ' ' '\n' | grep -E '^[0-9.]+$' | grep -v '^100\.'
+  echo "# the Wi-Fi network"
+  nmcli -t -f active,ssid dev wifi | awk -F: '$1 == "yes" {print $2}'
+} >> "$F"
+grep -vc '^#' "$F"                # how many values the list has
+```
+
+Then open the list, add your personal e-mail address on a line of its own, and
+delete any device name that is a common word, such as `localhost`: the guard
+would refuse that word in every text. On another computer, copy the list from
+the workstation, or type it.
+
+```bash
 nano ~/.config/research-platform/instance-values.txt
 ```
 
-Type the values, one per line: Ctrl+O and Enter save, Ctrl+X leaves. An
-editor keeps them out of the shell's history, where a command line with a
-value would stay.
+Ctrl+O and Enter save; Ctrl+X leaves. An editor keeps the values out of the
+shell's history, where a command line with a value would stay.
 
 Then pass the list through the script. Each value must be found, and the
 output shows no value:
@@ -241,9 +274,11 @@ then.
 | Section | What you see | What to do |
 |---|---|---|
 | 1, 2 | `ls` cannot find `.githooks` or `scripts` | The clone is older than the guard: `git pull`. |
-| 2 | The hooks show `-rw-r--r--`, without `x` | Git ignores them: `chmod +x .githooks/commit-msg .githooks/pre-commit`. If `git status` then lists them as modified, the repository had lost their mode: commit that change. |
+| 2 | The hooks show no `x`, such as `-rw-rw-r--` | Git ignores them: `chmod +x .githooks/commit-msg .githooks/pre-commit`. If `git status` then lists them as modified, the repository had lost their mode: commit that change. |
 | 3 | `no list of instance values at`, and a path | The file is not where the script looks: `ls -l ~/.config/research-platform`. When `XDG_CONFIG_HOME` is set, the script looks there instead of in `~/.config`. |
+| 3 | The block that writes the list prints an error from `tailscale`, `ssh` or `nmcli` | That part of the list is missing: Tailscale is not running (`tailscale status`), `server-lan` is not in `~/.ssh/config` (Tailscale guide, section 6), or the computer has no Wi-Fi. Add those values by hand, in `nano`. |
 | 3 | A value of the list is not reported | It is shorter than four characters, or its line starts with `#`. |
+| 4 | `--history` prints `instance value` for commits that are already public | A value of your list is a common word, or it is in the history already. A common word comes out of the list. A published value stays published: write it in your private note, with the date (section 7). |
 | 4 | The test commit was created: the second `git log` shows a new commit | The hooks did not run (section 2). Take the commit out before anything else, with `git reset --soft HEAD~1`, and never push it. |
 | 4, any commit | `not a GitHub noreply address` | `git config user.email` is not your noreply address. GitHub shows it in *Settings*, *Emails*; set it with `git config --global user.email` followed by that address. |
 | 4, any commit | `python3: not found` | Install Python 3: `sudo apt install python3`. Without it, every commit is refused. |
