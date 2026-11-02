@@ -58,10 +58,12 @@ Serve ([ADR-004](adr/ADR-004-compute-and-always-on-services-on-separate-hosts.md
 
 **Operations**
 
-- [ ] The service host pings healthchecks.io, and its silence arrives by email
-  ([ADR-007](adr/ADR-007-liveness-is-watched-from-outside.md)). The ping also
+- [ ] The service host pings healthchecks.io every five minutes, and its
+  silence arrives by email
+  ([heartbeat guide](guides/watch-the-service-host-with-healthchecks.md);
+  [ADR-007](adr/ADR-007-liveness-is-watched-from-outside.md)). The ping also
   fails when the host stops looking after itself: apt broken, automatic
-  updates stopped, or a reboot pending for days.
+  updates stopped, a reboot pending for days, or its disk nearly full.
 - [ ] A long run can be started, watched, and resumed from its last checkpoint
   after a cut. It pings healthchecks.io as it goes, and records the
   environment it ran in (guide for operating long runs).

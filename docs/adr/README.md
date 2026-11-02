@@ -69,7 +69,8 @@ repositories live is superseded by ADR-013: on GitHub too.
 [`ADR-007-liveness-is-watched-from-outside.md`](ADR-007-liveness-is-watched-from-outside.md)
 
 healthchecks.io, because a watcher at home dies with the house. Two levels of
-heartbeat, and pings that carry no identifiers.
+heartbeat, the per-host one for the service host only, and pings that carry no
+identifiers.
 
 ### 008 - A service host comes back on its own
 

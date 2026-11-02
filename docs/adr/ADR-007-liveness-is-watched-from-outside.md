@@ -14,6 +14,19 @@ Tailscale's coordination service and its sign-in provider admit every device
 to the tailnet, and OneDrive syncs files. healthchecks.io is the one whose job
 cannot be done at home. The rest of this record stands.
 
+Corrected on 2026-11-01: where this record gives each host its own check, it
+holds for the service host only. The workstation starts Windows at times, and
+stays off after a power cut by its firmware setting
+([workstation guide](../guides/install-ubuntu-gpu-workstation.md), section 6),
+so its silence is not an alarm; its runs ping on their own. The service host's
+check is described in its
+[guide](../guides/watch-the-service-host-with-healthchecks.md), written the
+same day: its ping carries `ok` or the names of the host's checks that failed,
+its URL takes the slug form, with the project's ping key, and the URL lives in
+a file on the host that only root can read, rather than in an environment
+variable, so that the script reads it the same way from its timer and by
+hand. The rest of this record stands.
+
 ## Context
 
 ntfy on the mini PC can announce what happens on the platform, but not its own

@@ -1,0 +1,11 @@
+# Installed as /etc/systemd/system/service-host-heartbeat.service
+# (docs/guides/watch-the-service-host-with-healthchecks.md).
+[Unit]
+Description=Report the service host's health to healthchecks.io
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/service-host-heartbeat
+Nice=10

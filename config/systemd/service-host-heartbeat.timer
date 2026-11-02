@@ -1,0 +1,12 @@
+# Installed as /etc/systemd/system/service-host-heartbeat.timer
+# (docs/guides/watch-the-service-host-with-healthchecks.md).
+[Unit]
+Description=Run the service host's heartbeat every 5 minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+AccuracySec=30s
+
+[Install]
+WantedBy=timers.target
