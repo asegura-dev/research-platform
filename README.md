@@ -48,16 +48,20 @@ house loses power
 
 ## Guides
 
-| Guide | Host | Status |
-|---|---|---|
-| [Install Ubuntu Server on a single-OS host](docs/guides/install-ubuntu-server.md) | Service host | First run in October 2026, steps 1 to 11; without Secure Boot (ADR-011) |
-| [Install Ubuntu Desktop on the GPU workstation](docs/guides/install-ubuntu-gpu-workstation.md) | GPU workstation | First run on 2026-10-21, sections 1 to 20; section 22 on 2026-10-28, and section 23 by 2026-10-29 |
-| [Validate the GPU workstation before it trains for real](docs/guides/validate-gpu-workstation.md) | GPU workstation | First run on 2026-10-22, sections 1 to 9 and 11, memory stress repeated over 40 GiB; section 10 pending |
-| [Join the hosts and your computers with Tailscale](docs/guides/install-tailscale.md) | Both hosts and your computers | First run on 2026-10-28, sections 1 to 7; the phone (section 8) pending |
-| [Download a public imaging dataset from IDC onto the workstation](docs/guides/download-a-dataset-from-idc.md) | GPU workstation | First run on 2026-10-29: downloaded and verified |
-| [Install Docker on the service host](docs/guides/install-docker.md) | Service host | First run on 2026-10-30, sections 1 to 6: every check passed |
-| [Set up the instance-data guard in a clone](docs/guides/set-up-the-instance-data-guard.md) | Each computer where you commit | First run on 2026-11-01, sections 1 to 5: every check passed |
-| [Watch the service host with healthchecks.io](docs/guides/watch-the-service-host-with-healthchecks.md) | Service host | Written on 2026-11-01; not run yet |
+In the order they run. Each one needs only what its *Needs* column lists:
+guides that do not need each other, such as Docker and the heartbeat, can go
+in either order.
+
+| Guide | Host | Needs | Status |
+|---|---|---|---|
+| [Install Ubuntu Server on a single-OS host](docs/guides/install-ubuntu-server.md) | Service host | Nothing | First run in October 2026, steps 1 to 11; without Secure Boot (ADR-011) |
+| [Install Ubuntu Desktop on the GPU workstation](docs/guides/install-ubuntu-gpu-workstation.md) | GPU workstation | Nothing | First run on 2026-10-21, sections 1 to 20; section 22 on 2026-10-28, and section 23 by 2026-10-29 |
+| [Validate the GPU workstation before it trains for real](docs/guides/validate-gpu-workstation.md) | GPU workstation | Workstation guide, sections 1 to 20 | First run on 2026-10-22, sections 1 to 9 and 11, memory stress repeated over 40 GiB; section 10 pending |
+| [Download a public imaging dataset from IDC onto the workstation](docs/guides/download-a-dataset-from-idc.md) | GPU workstation | Workstation guide, sections 1 to 20; validation guide, sections 1 and 6 | First run on 2026-10-29: downloaded and verified |
+| [Join the hosts and your computers with Tailscale](docs/guides/install-tailscale.md) | Both hosts and your computers | Server guide, steps 1 to 11 and 12b; workstation guide, sections 1 to 20 | First run on 2026-10-28, sections 1 to 7; the phone (section 8) pending |
+| [Install Docker on the service host](docs/guides/install-docker.md) | Service host | Server guide, steps 1 to 11; Tailscale guide, sections 1 to 6 | First run on 2026-10-30, sections 1 to 6: every check passed |
+| [Watch the service host with healthchecks.io](docs/guides/watch-the-service-host-with-healthchecks.md) | Service host | Server guide, steps 1 to 11; Tailscale guide, sections 1 to 6 | Written on 2026-11-01; not run yet |
+| [Set up the instance-data guard in a clone](docs/guides/set-up-the-instance-data-guard.md) | Each computer where you commit | A clone of this repository | First run on 2026-11-01, sections 1 to 5: every check passed |
 
 What comes next, and in what order, is in the [roadmap](docs/roadmap.md).
 
