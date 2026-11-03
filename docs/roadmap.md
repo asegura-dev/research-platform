@@ -1,19 +1,21 @@
 # Roadmap
 
-What must hold before a project relies on the platform, what comes after, and
-what was considered and refused. A ticked item has been done on the real
-hardware. Whatever is adopted gets its guide, and its decision record when
-there is a choice worth keeping.
+What the platform is for, what it still needs, in what order, and what was
+considered and refused. A ticked item has been done on the real hardware.
+Whatever is adopted gets its guide, and its decision record when there is a
+choice worth keeping.
 
-## Ready to operate
+## The goal: the thesis's first long training runs supervised
 
-The platform is ready for a project's real work, starting with its first long
-training, when every item below holds. The work left goes in this order: long
-runs, backups, ntfy, and one short training through all of it. The
-validation's open sections, the phone's access and the guard in the thesis
-repositories go alongside.
+The platform is for long trainings that nobody watches: days of nnU-Net on the
+workstation. While one runs, the phone hears how it goes and when it fails, a
+silence raises an alarm, a power cut costs only the epochs since its last
+checkpoint, the environment it ran in is recorded, and its results survive
+the loss of the house. The thesis is the first project that needs it. The
+service host runs the services that make it possible, and later others, each
+with its guide.
 
-**Hosts**
+### What already holds
 
 - [x] The service host runs Ubuntu Server, comes back by itself after a power
   cut, and installs its security updates on its own
@@ -24,55 +26,72 @@ repositories go alongside.
   Windows still starts from the firmware's menu
   ([workstation guide](guides/install-ubuntu-gpu-workstation.md), sections 1
   to 20).
-- [ ] The workstation is validated: memory, SSD and GPUs pass their tests, two
-  trainings hold for three hours, and its draw from the wall is known
-  ([validation guide](guides/validate-gpu-workstation.md); section 10 waits
-  for a meter). Sections 7 to 9 run again with the thesis dataset once it is
-  converted, before the RTX 4070's role is decided.
-
-**Access**
-
-- [ ] Every computer in use, the phone included, reaches both hosts with its
-  own SSH key, from inside and outside the house
+- [x] The workstation is validated: memory, SSD and GPUs pass their tests, and
+  two trainings hold for three hours
+  ([validation guide](guides/validate-gpu-workstation.md), sections 1 to 9
+  and 11).
+- [x] Every computer in use reaches both hosts with its own SSH key, from
+  inside and outside the house
   ([Tailscale guide](guides/install-tailscale.md);
   [ADR-012](adr/ADR-012-ssh-over-tailscale-with-a-key-per-computer.md);
-  workstation guide, section 22).
-
-**Repositories**
-
-- [ ] Every repository lives on GitHub, private ones included
-  ([ADR-006](adr/ADR-006-public-repositories-on-github-private-on-forgejo.md),
-  [ADR-013](adr/ADR-013-github-not-a-forge-at-home-for-private-code.md)), and
-  refuses instance data: a hook checks each commit before it is made, and a
-  workflow checks each push
-  ([guard guide](guides/set-up-the-instance-data-guard.md)).
-
-**Services**, each listening on 127.0.0.1 and published only through Tailscale
-Serve ([ADR-004](adr/ADR-004-compute-and-always-on-services-on-separate-hosts.md))
-
-- [x] Docker is installed, publishes every port on 127.0.0.1 by default, and
-  brings its containers back after a reboot
+  workstation guide, section 22). The phone comes with ntfy, below.
+- [x] Docker is installed on the service host, publishes every port on
+  127.0.0.1 by default, and brings its containers back after a reboot
   ([Docker guide](guides/install-docker.md)).
-- [ ] ntfy delivers a notification to the phone, from a training or from any
-  long command. Who may publish and read is decided before it goes live.
-
-**Operations**
-
 - [x] The service host pings healthchecks.io every five minutes, and its
   silence arrives by email
   ([heartbeat guide](guides/watch-the-service-host-with-healthchecks.md);
   [ADR-007](adr/ADR-007-liveness-is-watched-from-outside.md)). The ping also
   fails when the host stops looking after itself: apt broken, automatic
   updates stopped, a reboot pending for days, or its disk nearly full.
-- [ ] A long run can be started, watched, and resumed from its last checkpoint
-  after a cut. It pings healthchecks.io as it goes, and records the
-  environment it ran in (guide for operating long runs).
-- [ ] Results, the private note and the service host's `/srv` have a copy away
-  from home, and a restore has been tested (backups, an open decision).
-- [ ] One short training goes through all of it: its code from a private
-  repository at a recorded commit, its environment recorded, its heartbeat in
-  healthchecks.io, a cut on purpose and a resume from its checkpoint, its
-  results in the backup, and its start and end announced by ntfy.
+- [x] This repository refuses instance data: a hook checks each commit before
+  it is made, and a workflow checks each push
+  ([guard guide](guides/set-up-the-instance-data-guard.md)). Private
+  repositories live on GitHub too
+  ([ADR-006](adr/ADR-006-public-repositories-on-github-private-on-forgejo.md),
+  [ADR-013](adr/ADR-013-github-not-a-forge-at-home-for-private-code.md)).
+
+### What is left, in this order
+
+1. **ntfy: a notification reaches the phone.**
+   - [ ] The phone joins the tailnet (Tailscale guide, section 8).
+   - [ ] ntfy runs on the service host, listens on 127.0.0.1 and is published
+     only to the tailnet, with Tailscale Serve
+     ([ADR-004](adr/ADR-004-compute-and-always-on-services-on-separate-hosts.md)).
+     It refuses whoever it does not know: one token publishes from the
+     workstation, and another reads on the phone.
+   - [ ] A command that ends on the workstation shows on the phone.
+2. **Long runs: a training runs for days without anyone watching** (guide for
+   operating long runs).
+   - [ ] It keeps running when the session that started it closes.
+   - [ ] It notifies when it starts, every few dozen epochs with its metric,
+     when it ends and when it fails.
+   - [ ] It pings healthchecks.io as it goes, so that its silence raises the
+     alarm ([ADR-007](adr/ADR-007-liveness-is-watched-from-outside.md)).
+   - [ ] After a power cut, it resumes from its last checkpoint.
+   - [ ] It records the environment it ran in: the commits of its code and of
+     this repository, the kernel, the driver, and the versions of CUDA,
+     PyTorch and nnU-Net.
+
+   `run-signals`, the small package that sends these signals from a training,
+   comes here, unless something simpler is enough.
+3. **Backups: results survive the loss of the house.**
+   - [ ] Results, the private note and the service host's `/srv` have a copy
+     away from home, and a restore has been tested (backups, an open
+     decision).
+4. **End to end: one short training goes through all of it.**
+   - [ ] Its code from a private repository at a recorded commit, its
+     environment recorded, its heartbeat in healthchecks.io, a cut on purpose
+     and a resume from its checkpoint, its results in the backup, and its
+     start and end announced by ntfy.
+
+### Alongside, without holding up the goal
+
+- [ ] The workstation's draw from the wall (validation guide, section 10, which
+  waits for a meter), and sections 7 to 9 again with the thesis dataset once
+  it is converted, before the RTX 4070's role is decided.
+- [ ] The thesis repositories take the instance-data guard when they are
+  created (guard guide).
 
 ## After it operates
 
@@ -84,6 +103,9 @@ Serve ([ADR-004](adr/ADR-004-compute-and-always-on-services-on-separate-hosts.md
 - [ ] **An experiment tracker, if a project needs one.** nnU-Net logs every
   epoch, and a project keeps its own record of runs. A tracker on the service
   host (MLflow or Aim) comes only when comparing runs needs more.
+- **More services on the service host, as projects need them,** each with its
+  guide. Each one listens on 127.0.0.1, is published only to the tailnet, and
+  asks for its own login.
 
 ## Refused
 
