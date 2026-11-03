@@ -7,7 +7,14 @@
 > long runs will, each with a check of its own.
 
 > **Status:** written on 2026-11-01 from the documentation of healthchecks.io,
-> systemd and apt. Not run yet.
+> systemd and apt. First run on 2026-11-02, sections 1 to 8: the check went
+> down on a test failure and after 15 minutes of silence, and up again, each
+> time with an email, and a reboot raised no alarm. Its first ping was refused
+> with a 400, because the URL copied from the check's page carried
+> `{ping_key}` before the key existed. Revised from that run: section 2
+> creates the key before the check's page is opened, section 3 prints the
+> URL's key length and slug, and sections 5, 6 and 8 show what systemd prints
+> on Ubuntu 24.04.
 
 A watcher at home dies with the house, so healthchecks.io watches the platform
 from outside
@@ -99,7 +106,9 @@ with an email integration to your address and a check named *My First Check*.
 
 1. Open the project's **Settings**, at the top. In the table of keys, on the
    *Ping key* row, click **Create**. The key is shown in a dialog; you do not
-   need to copy it, because the check's page shows it inside the URL.
+   need to copy it, because the check's page shows it inside the URL. Do this
+   first: until the key exists, the check's page shows `{ping_key}` in its
+   place.
 2. Back in **Checks**, click **Add Check** and fill in:
    - **Name:** `service-host`
    - **Slug:** `service-host`
@@ -112,7 +121,9 @@ with an email integration to your address and a check named *My First Check*.
    project.
 4. Where the page shows the check's URL, choose **slug** instead of **uuid**.
    The URL now has the form `https://hc-ping.com/<ping-key>/service-host`.
-   Keep the page open for section 3.
+   If it shows `{ping_key}` where the key should be, the page was opened
+   before the key existed: create the key (step 1) and reload the page. Keep
+   the page open for section 3.
 
 *My First Check* never raises an alarm, because a check that has never
 received a ping cannot be late. Remove it if you like, with **Remove** at the
@@ -120,7 +131,7 @@ bottom of its page.
 
 **Check:** the check's page shows *Period* 5 minutes and *Grace Time* 10
 minutes, its state is *new*, its email integration is on, and its URL in the
-slug form ends in `/service-host`.
+slug form carries the key, not `{ping_key}`, and ends in `/service-host`.
 
 ## 3. Put the URL in a file that only root can read
 
@@ -148,13 +159,16 @@ command, so it does not stay in the shell's history.
 
 ```bash
 sudo stat -c '%a %U %n' /etc/research-platform /etc/research-platform/heartbeat.env
-sudo grep -c '^HEARTBEAT_URL=https://hc-ping.com/' /etc/research-platform/heartbeat.env
+sudo sed -n 's/^HEARTBEAT_URL=//p' /etc/research-platform/heartbeat.env | tr -d "[:space:]\"'" | awk -F/ '{print $3, length($4), $5}'
 ```
 
 The first prints `700 root /etc/research-platform` and
-`600 root /etc/research-platform/heartbeat.env`; the second prints `1`. To
-read the file, use `sudo cat` on your own screen only: a screenshot or a
-paste in a chat would hand the URL out.
+`600 root /etc/research-platform/heartbeat.env`. The second prints
+`hc-ping.com 22 service-host`: the URL's host, the length of its key and its
+slug, never the URL itself. A key of 10 characters is `{ping_key}`, copied
+before the key existed (section 2, step 4). To read the file, use `sudo cat`
+on your own screen only: a screenshot or a paste in a chat would hand the URL
+out.
 
 ## 4. Install the script and the timer from a clone
 
@@ -212,10 +226,14 @@ sudo systemctl start service-host-heartbeat.service
 systemctl status service-host-heartbeat.service --no-pager
 ```
 
-`start` returns when the run ends. The status says `inactive (dead)`, and a
-line ends in `status=0/SUCCESS`. In the dashboard, the check turns *up*
-(green), and its log shows the ping, with the body `ok`. No email comes for
-this one: healthchecks.io stays quiet when a new check comes up.
+`start` prints nothing, and returns when the run ends. The status says
+`inactive (dead)`, and its last lines say `Deactivated successfully` and
+`Finished service-host-heartbeat.service`. In the dashboard, the check turns
+*up* (green), and its log shows the ping, with the body `ok`. No email comes
+for this one: healthchecks.io stays quiet when a new check comes up. A run
+that fails makes `start` say `Job for service-host-heartbeat.service failed`,
+and the status `failed (Result: exit-code)`: *If something goes wrong* says
+what to read next.
 
 Now the alarm, with a ping that names a failed check, `test`:
 
@@ -239,12 +257,13 @@ as not spam: an alert that lands there is as good as none.
 
 ```bash
 sudo systemctl enable --now service-host-heartbeat.timer
-systemctl list-timers service-host-heartbeat.timer --no-pager
+sleep 5; systemctl list-timers service-host-heartbeat.timer --no-pager
 ```
 
 `enable` starts the timer at every boot, with a first run two minutes after
 it; `--now` starts it now, and since those two minutes have passed, it runs
-at once. Then one run every five minutes.
+at once. Then one run every five minutes. The `sleep` lets that first run
+end: while it runs, `list-timers` shows `-` instead of the next run.
 
 **Check:** `list-timers` shows the timer, with its next run less than five
 minutes away, and ten minutes later the check's log shows two more pings.
@@ -285,6 +304,10 @@ sudo journalctl -b -u service-host-heartbeat.service --no-pager | head -n 3   # 
 systemctl list-timers service-host-heartbeat.timer --no-pager                 # its next run
 ```
 
+If the journal says `-- No entries --`, the first run has not come yet: it
+comes two minutes after the time that `uptime -s` prints. Run the three
+commands again a minute later.
+
 **Check:** the first run came about two minutes after the start, the timer
 shows its next run, and no email arrived.
 
@@ -324,9 +347,10 @@ stop there and write down what you saw.
 | 1 | `upgrade-stamp` is missing, or its date is older than yesterday | unattended-upgrades has not finished a run without errors lately. `systemctl list-timers apt-daily-upgrade.timer --no-pager` shows when it last ran, and `sudo tail -n 30 /var/log/unattended-upgrades/unattended-upgrades.log` what went wrong. Fix that first: the heartbeat would report it at once. |
 | 1 | `apt-config` prints `E: Syntax error` | A typo in a file of `/etc/apt/apt.conf.d/`; the message names the file and the line. Fix it as in the server guide's step 10. |
 | 2 | The slug form of the URL is missing, or asks for a slug | The project has no ping key yet, or the check has no slug: create the key (section 2, step 1), or set the slug in the check's *Name and Tags* dialog, with *edit…* next to its name. |
-| 3 | `grep -c` prints `0` | The line does not start with `HEARTBEAT_URL=https://hc-ping.com/`: open the file again with `sudo nano` and write the line as section 3 says. |
-| 5, any | `systemctl status` shows `status=1/FAILURE`, or another number | `sudo journalctl -u service-host-heartbeat.service -n 20 --no-pager` shows the message of the script or of `curl`: find it in this table. |
+| 3 | The second command prints nothing, or something other than `hc-ping.com 22 service-host` | The file has no line that begins with `HEARTBEAT_URL=`, or its URL is not the check's slug URL: a key of 10 characters is `{ping_key}` (section 2, step 4), and a key of 36 characters with no slug is the *uuid* form. Copy the URL again from the check's page, with **slug** chosen, and write the line again with `sudo nano`. |
+| 5, any | `start` says `Job for service-host-heartbeat.service failed`, and the status `failed (Result: exit-code)` | `sudo journalctl -u service-host-heartbeat.service -n 5 --no-pager -o cat` shows the message of the script or of `curl` in full, without the prefix that cuts it short in the status: find it in this table. |
 | 5, any | `service-host-heartbeat: no HEARTBEAT_URL in /etc/research-platform/heartbeat.env` | The file is missing or empty, or its line does not begin with `HEARTBEAT_URL=`: section 3. |
+| 5, any | `curl: (22) The requested URL returned error: 400` | healthchecks.io refuses the URL's form, usually because it carries `{ping_key}` instead of the key: the check's page was opened before the key existed, and section 3's check prints a key of 10 characters. Create the key if Settings still offers **Create**, reload the check's page, and copy its URL into the file again (section 3). |
 | 5, any | `curl: (22) The requested URL returned error: 404` | healthchecks.io has no check with that key and slug: the slug at the end must be the check's, `service-host`, and the key the project's current one. Copy the URL from the check's page into the file again (section 3). |
 | 5, any | `curl: (22) The requested URL returned error: 429` | More than five pings in a minute: wait a minute, and try again. |
 | 5, any | `curl: (6) Could not resolve host`, or `curl: (28)`, a timeout | The server cannot reach healthchecks.io: `ping -c 3 hc-ping.com` tells whether its internet is down. |

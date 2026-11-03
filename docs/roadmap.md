@@ -8,10 +8,10 @@ there is a choice worth keeping.
 ## Ready to operate
 
 The platform is ready for a project's real work, starting with its first long
-training, when every item below holds. The work left goes in this order: the
-instance-data guard, the service host's heartbeat, long runs, backups, ntfy,
-and one short training through all of it. The validation's open sections and
-the phone's access go alongside.
+training, when every item below holds. The work left goes in this order: long
+runs, backups, ntfy, and one short training through all of it. The
+validation's open sections, the phone's access and the guard in the thesis
+repositories go alongside.
 
 **Hosts**
 
@@ -58,7 +58,7 @@ Serve ([ADR-004](adr/ADR-004-compute-and-always-on-services-on-separate-hosts.md
 
 **Operations**
 
-- [ ] The service host pings healthchecks.io every five minutes, and its
+- [x] The service host pings healthchecks.io every five minutes, and its
   silence arrives by email
   ([heartbeat guide](guides/watch-the-service-host-with-healthchecks.md);
   [ADR-007](adr/ADR-007-liveness-is-watched-from-outside.md)). The ping also
