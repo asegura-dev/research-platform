@@ -8,8 +8,9 @@
 
 > **Status:** written on 2026-10-25, from the documentation and the source
 > code of Tailscale 1.104.2. First run on 2026-10-28, sections 1 to 7, with the
-> workstation, the service host and a Windows laptop; the phone (section 8) is
-> still to run. Revised from that run on 2026-10-29.
+> workstation, the service host and a Windows laptop. Revised from that run on
+> 2026-10-29. The phone joined the tailnet by 2026-11-04 (section 8, step 1),
+> for ntfy; its SSH, steps 2 to 6, is still to run.
 
 Tailscale joins your devices in a private network of their own, a *tailnet*.
 Each device gets an address that starts with `100.` and a name, and reaches

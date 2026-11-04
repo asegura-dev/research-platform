@@ -61,6 +61,9 @@ SHAPES = [
     ("healthchecks-ping-url", r"hc-ping\.com/[0-9a-z_-]{8,}", False),
     # A topic on the public server, not a page under docs.ntfy.sh.
     ("ntfy-topic-url", r"(?<![a-z0-9.-])ntfy\.sh/[a-z0-9_-]+", False),
+    # An access token of an ntfy server: tk_ and 29 more characters.
+    ("ntfy-token", r"(?<![A-Za-z0-9_-])tk_[A-Za-z0-9_-]{29}(?![A-Za-z0-9_-])",
+     True),
     ("bitlocker-recovery-key", r"[0-9]{6}(?:-[0-9]{6}){7}", False),
     ("tailscale-key", r"tskey-[a-z]+-[A-Za-z0-9]+", True),
     ("github-token",

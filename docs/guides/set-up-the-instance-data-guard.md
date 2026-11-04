@@ -39,7 +39,7 @@ The script recognises instance data in two ways:
 - **By its shape:** an address in a private range or in one of Tailscale's
   ranges, a name under `ts.net`, a MAC address, an SSH host fingerprint or
   public key, a GPU's UUID, a disk's EUI, any other UUID or long hexadecimal
-  string, a BitLocker recovery key, a Tailscale or GitHub token, a
+  string, a BitLocker recovery key, a Tailscale, GitHub or ntfy token, a
   healthchecks.io ping URL, an ntfy.sh topic, an e-mail address.
 - **By your instance's own values,** which no shape can know, such as each
   host's name. You list them on each computer, outside every repository

@@ -2,12 +2,12 @@
 # It holds no instance values: users, passwords and tokens live in the
 # database under /srv/ntfy/data, which only root can read.
 
-# Inside its container. Docker publishes it on 127.0.0.1:2586 only.
+# Inside its container. Docker publishes it on 127.0.0.1:2586 only, and
+# Tailscale Serve forwards each connection from the tailnet over TCP, without
+# naming the device it comes from. ntfy counts every device as one visitor,
+# well within its limits (ADR-014), and behind-proxy stays off: on, it would
+# take whatever address a client claims.
 listen-http: ":80"
-
-# Tailscale Serve sets X-Forwarded-For to each device's tailnet address, so
-# that the phone and the workstation are limited apart, not as one visitor.
-behind-proxy: true
 
 # Messages wait 48 hours for a phone that was off or out of the tailnet.
 cache-file: /var/lib/ntfy/cache.db

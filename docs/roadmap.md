@@ -34,7 +34,8 @@ with its guide.
   inside and outside the house
   ([Tailscale guide](guides/install-tailscale.md);
   [ADR-012](adr/ADR-012-ssh-over-tailscale-with-a-key-per-computer.md);
-  workstation guide, section 22). The phone comes with ntfy, below.
+  workstation guide, section 22). The phone joined the tailnet for ntfy; its
+  SSH waits until it is needed.
 - [x] Docker is installed on the service host, publishes every port on
   127.0.0.1 by default, and brings its containers back after a reboot
   ([Docker guide](guides/install-docker.md)).
@@ -44,6 +45,12 @@ with its guide.
   [ADR-007](adr/ADR-007-liveness-is-watched-from-outside.md)). The ping also
   fails when the host stops looking after itself: apt broken, automatic
   updates stopped, a reboot pending for days, or its disk nearly full.
+- [x] ntfy runs on the service host, listens on 127.0.0.1 and is published
+  only to the tailnet, with Tailscale Serve. It refuses whoever it does not
+  know: the phone reads with a password, and the workstation publishes with a
+  token. A command that ends on the workstation shows on the phone
+  ([ntfy guide](guides/install-ntfy.md);
+  [ADR-014](adr/ADR-014-ntfy-stays-inside-the-tailnet-and-answers-only-its-users.md)).
 - [x] This repository refuses instance data: a hook checks each commit before
   it is made, and a workflow checks each push
   ([guard guide](guides/set-up-the-instance-data-guard.md)). Private
@@ -53,17 +60,7 @@ with its guide.
 
 ### What is left, in this order
 
-1. **ntfy: a notification reaches the phone**
-   ([ntfy guide](guides/install-ntfy.md);
-   [ADR-014](adr/ADR-014-ntfy-stays-inside-the-tailnet-and-answers-only-its-users.md)).
-   - [ ] The phone joins the tailnet (Tailscale guide, section 8).
-   - [ ] ntfy runs on the service host, listens on 127.0.0.1 and is published
-     only to the tailnet, with Tailscale Serve
-     ([ADR-004](adr/ADR-004-compute-and-always-on-services-on-separate-hosts.md)).
-     It refuses whoever it does not know: one token publishes from the
-     workstation, and another reads on the phone.
-   - [ ] A command that ends on the workstation shows on the phone.
-2. **Long runs: a training runs for days without anyone watching** (guide for
+1. **Long runs: a training runs for days without anyone watching** (guide for
    operating long runs).
    - [ ] It keeps running when the session that started it closes.
    - [ ] It notifies when it starts, every few dozen epochs with its metric,
@@ -77,11 +74,11 @@ with its guide.
 
    `run-signals`, the small package that sends these signals from a training,
    comes here, unless something simpler is enough.
-3. **Backups: results survive the loss of the house.**
+2. **Backups: results survive the loss of the house.**
    - [ ] Results, the private note and the service host's `/srv` have a copy
      away from home, and a restore has been tested (backups, an open
      decision).
-4. **End to end: one short training goes through all of it.**
+3. **End to end: one short training goes through all of it.**
    - [ ] Its code from a private repository at a recorded commit, its
      environment recorded, its heartbeat in healthchecks.io, a cut on purpose
      and a resume from its checkpoint, its results in the backup, and its

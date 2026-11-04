@@ -8,7 +8,15 @@
 
 > **Status:** written on 2026-11-03 from ntfy's documentation and source, for
 > ntfy 2.28.0 (released on 2026-08-27), and from Tailscale's documentation of
-> Serve. Not run yet.
+> Serve. First run on 2026-11-04, sections 1 to 8: ntfy refused every request
+> without a user, and the phone received the three notifications sent from the
+> workstation. Serve first published ntfy over HTTP, and answered
+> `404 page not found` to the workstation, whose SSH `config` names the server
+> by its `100.` address: over HTTP, Serve answers only a request addressed to
+> the server's name. Revised from that run: section 5 publishes over TCP,
+> which the server's addresses reach as well as its name, section 4's check
+> hides the token, section 9 recreates the container on an update, and
+> `notify` sends no tags, which the phone showed as emojis.
 
 ntfy delivers notifications by *topic*: whatever is published to a topic
 reaches every phone subscribed to it. Here it runs in Docker on the service
@@ -64,7 +72,7 @@ address to this repository.
 | Decision | Value here | Why it matters | Record |
 |---|---|---|---|
 | Where it runs | Docker on the service host, in `/srv/ntfy`, from the image `binwiederhier/ntfy:v2.28.0` | The service host is always on; an image by version makes an update a line you change | [ADR-004](../adr/ADR-004-compute-and-always-on-services-on-separate-hosts.md), [ADR-014](../adr/ADR-014-ntfy-stays-inside-the-tailnet-and-answers-only-its-users.md) |
-| How it is reached | Port 2586 on 127.0.0.1, published to the tailnet by Tailscale Serve, over HTTP | Nothing outside the tailnet reaches it; Tailscale encrypts the traffic, and no certificate puts the server's name in public logs | [ADR-014](../adr/ADR-014-ntfy-stays-inside-the-tailnet-and-answers-only-its-users.md) |
+| How it is reached | Port 2586 on 127.0.0.1, published to the tailnet by Tailscale Serve, which forwards each connection over TCP; ntfy speaks plain HTTP | Nothing outside the tailnet reaches it, and the server's `100.` address reaches it as well as its name; Tailscale encrypts the traffic, and no certificate puts the server's name in public logs | [ADR-014](../adr/ADR-014-ntfy-stays-inside-the-tailnet-and-answers-only-its-users.md) |
 | Who may use it | Nobody by default; `phone` reads the topic `runs`, and `workstation` publishes to it | The second lock: a device in the tailnet without a user gets nothing | [ADR-014](../adr/ADR-014-ntfy-stays-inside-the-tailnet-and-answers-only-its-users.md) |
 | How the phone receives | The ntfy app keeps a connection open with the server; Tailscale stays on in the phone | A server of your own gets no push from Google; a phone out of the tailnet hears nothing until it is back | [ADR-014](../adr/ADR-014-ntfy-stays-inside-the-tailnet-and-answers-only-its-users.md) |
 | How the workstation publishes | `notify`, a script in this repository, with the token in `~/.config/research-platform/ntfy.env`, readable only by you | The token never goes on a command line or into git; a project reads the same three values | [ADR-014](../adr/ADR-014-ntfy-stays-inside-the-tailnet-and-answers-only-its-users.md) |
@@ -180,23 +188,31 @@ on the screen: section 7 copies it into a file on the workstation. Do not
 paste it anywhere else, in a chat or in a screenshot: whoever holds it can
 publish to the topic.
 
-**Check:** the list shows the two users with those accesses, and
-`sudo docker compose exec ntfy ntfy token list workstation` shows one token,
-labeled `workstation`.
+**Check:** the list shows the two users with those accesses, and this shows
+one token, labeled `workstation`. `token list` prints the token in full, so
+`sed` hides it:
+
+```bash
+sudo docker compose exec ntfy ntfy token list workstation | sed -E 's/tk_[a-z0-9]+/tk_…/'   # - tk_… (workstation), never expires, …
+```
 
 ## 5. Publish it to the tailnet
 
 ```bash
-sudo tailscale serve --bg --http=2586 http://127.0.0.1:2586
+sudo tailscale serve --bg --tcp=2586 tcp://127.0.0.1:2586
 tailscale serve status
 ```
 
-`--bg` keeps it published across reboots. The status shows an address on port
-2586, marked as reachable from the tailnet only, sent to
-`http://127.0.0.1:2586`.
+Serve forwards each connection to ntfy as it comes, without reading it, so
+the server's `100.` address reaches ntfy as well as its name. Over HTTP
+(`--http`), Serve would answer only a request addressed to the server's name:
+one addressed to its address gets `404 page not found`. `--bg` keeps it
+published across reboots. The status shows the server's name on port 2586,
+marked as reachable from the tailnet only, then its two addresses on the same
+port, all sent to `tcp://127.0.0.1:2586`.
 
-From the workstation, read-only, with the server's name in the tailnet taken
-from its SSH `config`:
+From the workstation, read-only, with the server's name or address in the
+tailnet taken from its SSH `config`:
 
 ```bash
 S=$(ssh -G server | awk '/^hostname /{print $2}')
@@ -267,9 +283,8 @@ notify -- false; echo "exit $?"                                         # exit 1
 The phone shows three notifications:
 
 - *Notice*, with the text;
-- *sleep finished*, *It took 0h 00m 05s.*, with a check mark;
-- *false failed*, *Exit status 1, after 0h 00m 00s.*, with a cross and a
-  higher priority.
+- *sleep finished*, *It took 0h 00m 05s.*;
+- *false failed*, *Exit status 1, after 0h 00m 00s.*, with a higher priority.
 
 `notify -- command` runs any command, waits for it, and tells the phone how it
 ended and how long it took. It names only the program, never its arguments,
@@ -290,7 +305,7 @@ but `exit 1`.
 
   ```bash
   sudo docker compose exec ntfy ntfy access                       # every user and its access
-  sudo docker compose exec ntfy ntfy token list workstation       # the workstation's tokens
+  sudo docker compose exec ntfy ntfy token list workstation       # the workstation's tokens, in full
   sudo docker compose exec ntfy ntfy user change-pass phone       # a new password for the phone
   ```
 
@@ -300,11 +315,12 @@ but `exit 1`.
   (section 7).
 - **Updates:** a new version is a new image line in this repository's
   `config/ntfy/compose.yaml`. On the server, `git pull`, section 2's `install`
-  of the two files, then `sudo docker compose up -d` in `/srv/ntfy`. Read the
-  release notes first.
+  of the two files, then `sudo docker compose up -d --force-recreate` in
+  `/srv/ntfy`: without `--force-recreate`, a change to `server.yml` alone
+  would not restart ntfy. Read the release notes first.
 - **The 04:00 reboot:** ntfy comes back by its restart policy, the
   publication by `--bg`, and the phone reconnects and fetches what it missed.
-- **To stop publishing it:** `sudo tailscale serve --http=2586 off`.
+- **To stop publishing it:** `sudo tailscale serve --tcp=2586 off`.
 - **Backups:** `/srv/ntfy/data` holds the users, the token and the messages;
   the backups (roadmap) copy `/srv`.
 
@@ -321,6 +337,7 @@ stop there and write down what you saw.
 | 4 | `ntfy user add` says that the user already exists | It was created before: `ntfy access` shows it, and `ntfy user change-pass phone` changes its password. |
 | 5 | `curl` from the workstation says `Could not resolve host` | `tailscale status` on the workstation must list the server; MagicDNS must be on (Tailscale guide, section 5). |
 | 5 | `curl` from the workstation waits, or says `Connection refused` | `tailscale serve status` on the server: repeat the `tailscale serve` command of section 5. |
+| 5 | `curl` from the workstation answers `404 page not found` | ntfy is published over HTTP, which answers only by the server's name: on the server, `sudo tailscale serve --http=2586 off`, then section 5's command. |
 | 6 | The app says *Login failed. User phone not authorized* | The password, or the access line for `phone` (section 4). |
 | 6, 8 | The topic is listed, but notifications do not arrive | Tailscale is off on the phone, or Android stopped ntfy: in the app's battery settings, let it run without restrictions. |
 | 7, 8 | `notify: NTFY_URL, NTFY_TOPIC and NTFY_TOKEN must be set` | The file lacks a line or a value: section 7's `awk` check shows which. |
@@ -340,10 +357,13 @@ comes next is in the [roadmap](../roadmap.md).
 - ntfy, *Configuring the ntfy server* (access control, behind a proxy, the
   message cache): https://docs.ntfy.sh/config/
 - ntfy, *Installation* (Docker): https://docs.ntfy.sh/install/
-- ntfy, *Publishing* (title, priority, tags and authentication):
+- ntfy, *Publishing* (title, priority and authentication):
   https://docs.ntfy.sh/publish/
 - ntfy, *Subscribe from your phone* (instant delivery, self-hosted servers):
   https://docs.ntfy.sh/subscribe/phone/
 - ntfy 2.28.0, its release on GitHub:
   https://github.com/binwiederhier/ntfy/releases/tag/v2.28.0
 - Tailscale, *tailscale serve*: https://tailscale.com/kb/1242/tailscale-serve
+- Tailscale's source, where Serve over HTTP picks what answers by the name in
+  each request (`getServeHandler`):
+  https://github.com/tailscale/tailscale/blob/main/ipn/ipnlocal/serve.go

@@ -132,7 +132,8 @@ request without a user: the phone reads with a password, the workstation
 publishes with a token, and projects reach it through three values. Every
 later service gets its own login too. Refused: ntfy.sh, third-party
 notifiers, HTTPS with Tailscale's certificate, Funnel, and the relay through
-Google.
+Google. Its first run moved Serve to TCP: over HTTP, Serve answers only by
+the server's name.
 
 ## Open decisions
 

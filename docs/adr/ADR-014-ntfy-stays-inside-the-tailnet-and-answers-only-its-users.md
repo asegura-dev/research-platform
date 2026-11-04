@@ -6,6 +6,17 @@ Accepted on 2026-11-03, while writing the
 [ntfy guide](../guides/install-ntfy.md). ntfy is the first service published
 to the tailnet, and the first one that a project's code will call.
 
+Corrected on 2026-11-04, after the guide's first run. Tailscale Serve over
+HTTP answers only a request addressed to the server's name, and one addressed
+to its `100.` address gets `404 page not found`; the phone reaches the server
+by address, and so may the workstation. Serve now forwards ntfy's port over
+TCP, which any of the server's names and addresses reach, still from the
+tailnet only. ntfy then cannot tell which device a request comes from:
+`behind-proxy` left `server.yml`, and every device counts as one visitor,
+whose limits in ntfy 2.28.0, 60 requests at once and then one every 5
+seconds, stay far above a few notifications an hour. The rest of the decision
+stands.
+
 ## Context
 
 - The platform has to tell the phone how a long training goes, when it ends
