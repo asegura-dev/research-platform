@@ -1,0 +1,21 @@
+# Installed as /srv/ntfy/server.yml (docs/guides/install-ntfy.md).
+# It holds no instance values: users, passwords and tokens live in the
+# database under /srv/ntfy/data, which only root can read.
+
+# Inside its container. Docker publishes it on 127.0.0.1:2586 only.
+listen-http: ":80"
+
+# Tailscale Serve sets X-Forwarded-For to each device's tailnet address, so
+# that the phone and the workstation are limited apart, not as one visitor.
+behind-proxy: true
+
+# Messages wait 48 hours for a phone that was off or out of the tailnet.
+cache-file: /var/lib/ntfy/cache.db
+cache-duration: "48h"
+
+# Nobody reads or publishes without a user that has access to the topic.
+auth-file: /var/lib/ntfy/user.db
+auth-default-access: deny-all
+
+# The phone's app is the only client: no web app, no sign-up, no attachments.
+web-root: disable

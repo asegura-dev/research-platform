@@ -5,10 +5,10 @@ a GPU workstation, an always-on service host, and the shared services every
 project consumes (remote access, notifications and liveness checks).
 
 This repository publishes the **design** of the platform: guides, decision
-records, the scripts and systemd units that the hosts install, the scripts
-that guard the repository and, later, configuration templates. It never
-contains an **instance** of it: no hostnames, addresses, notification topics,
-ping URLs or tokens. Each host keeps those outside git.
+records, the scripts and configuration files that the hosts install, and the
+scripts that guard the repository. It never contains an **instance** of it:
+no hostnames, addresses, notification topics, ping URLs or tokens. Each host
+keeps those outside git.
 
 > **Status:** early. Guides are written from official documentation, and each
 > one says whether it has been run end to end on real hardware. The
@@ -61,6 +61,7 @@ in either order.
 | [Join the hosts and your computers with Tailscale](docs/guides/install-tailscale.md) | Both hosts and your computers | Server guide, steps 1 to 11 and 12b; workstation guide, sections 1 to 20 | First run on 2026-10-28, sections 1 to 7; the phone (section 8) pending |
 | [Install Docker on the service host](docs/guides/install-docker.md) | Service host | Server guide, steps 1 to 11; Tailscale guide, sections 1 to 6 | First run on 2026-10-30, sections 1 to 6: every check passed |
 | [Watch the service host with healthchecks.io](docs/guides/watch-the-service-host-with-healthchecks.md) | Service host | Server guide, steps 1 to 11; Tailscale guide, sections 1 to 6 | First run on 2026-11-02, sections 1 to 8: every check passed |
+| [Install ntfy on the service host](docs/guides/install-ntfy.md) | Service host, the phone and the workstation | Docker guide, sections 1 to 6; Tailscale guide, sections 1 to 6, and step 1 of section 8 | Written on 2026-11-03; not run yet |
 | [Set up the instance-data guard in a clone](docs/guides/set-up-the-instance-data-guard.md) | Each computer where you commit | A clone of this repository | First run on 2026-11-01, sections 1 to 5: every check passed |
 
 What comes next, and in what order, is in the [roadmap](docs/roadmap.md).

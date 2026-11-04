@@ -59,7 +59,8 @@ SHAPES = [
      r"-[0-9a-f]{12}(?![0-9a-f])", False),
     ("long-hex-string", r"(?<![0-9a-f])[0-9a-f]{32,}(?![0-9a-f])", False),
     ("healthchecks-ping-url", r"hc-ping\.com/[0-9a-z_-]{8,}", False),
-    ("ntfy-topic-url", r"ntfy\.sh/[a-z0-9_-]+", False),
+    # A topic on the public server, not a page under docs.ntfy.sh.
+    ("ntfy-topic-url", r"(?<![a-z0-9.-])ntfy\.sh/[a-z0-9_-]+", False),
     ("bitlocker-recovery-key", r"[0-9]{6}(?:-[0-9]{6}){7}", False),
     ("tailscale-key", r"tskey-[a-z]+-[A-Za-z0-9]+", True),
     ("github-token",

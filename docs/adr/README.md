@@ -123,6 +123,17 @@ Actions. A forge at home would load the least protected host with a service, a
 runner and backups. Supersedes ADR-005, and ADR-006 where it put private
 repositories on Forgejo.
 
+### 014 - ntfy stays inside the tailnet, and answers only its own users
+
+[`ADR-014-ntfy-stays-inside-the-tailnet-and-answers-only-its-users.md`](ADR-014-ntfy-stays-inside-the-tailnet-and-answers-only-its-users.md)
+
+On the service host, published to the tailnet over plain HTTP, refusing every
+request without a user: the phone reads with a password, the workstation
+publishes with a token, and projects reach it through three values. Every
+later service gets its own login too. Refused: ntfy.sh, third-party
+notifiers, HTTPS with Tailscale's certificate, Funnel, and the relay through
+Google.
+
 ## Open decisions
 
 Each one gets its record when the work reaches it. Operational choices that

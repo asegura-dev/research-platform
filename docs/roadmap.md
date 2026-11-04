@@ -53,7 +53,9 @@ with its guide.
 
 ### What is left, in this order
 
-1. **ntfy: a notification reaches the phone.**
+1. **ntfy: a notification reaches the phone**
+   ([ntfy guide](guides/install-ntfy.md);
+   [ADR-014](adr/ADR-014-ntfy-stays-inside-the-tailnet-and-answers-only-its-users.md)).
    - [ ] The phone joins the tailnet (Tailscale guide, section 8).
    - [ ] ntfy runs on the service host, listens on 127.0.0.1 and is published
      only to the tailnet, with Tailscale Serve
