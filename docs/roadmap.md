@@ -62,7 +62,8 @@ that any project can use and cite.
 ### What is left, in this order
 
 1. **Long runs: trainings run for days, one after another, without anyone
-   watching** (guide for operating long runs).
+   watching** ([long runs guide](guides/operate-long-runs.md);
+   [ADR-015](adr/ADR-015-long-runs-are-watched-from-outside-in-a-queue-per-gpu.md)).
    - [ ] Each GPU has its own queue. Its runs start one after another by
      themselves, and keep running when the session that started them closes.
      A queue stops at its first failure, and does not start a run without
@@ -91,8 +92,9 @@ that any project can use and cite.
      kernel, the driver, and the versions of CUDA, PyTorch and nnU-Net), and
      can cite this record.
 
-   `run-signals`, the small package that sends these signals from a training,
-   comes here, unless something simpler is enough.
+   A watcher outside the training, `run-queue`, sends these signals, so a
+   project changes nothing in its code: `run-signals`, a package inside the
+   training, is not created.
 2. **Backups: results survive the loss of the house.**
    - [ ] Results, the private note and the service host's `/srv` have a copy
      away from home, and a restore has been tested (backups, an open

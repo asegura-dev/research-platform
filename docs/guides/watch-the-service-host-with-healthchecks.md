@@ -3,8 +3,8 @@
 > **Scope:** the service host. At the end, it pings healthchecks.io every five
 > minutes, and an email reaches you when a ping names a problem, or when the
 > pings stop because the host is off, the house lost its power or its
-> internet, or the timer died. The GPU workstation does not ping this way: its
-> long runs will, each with a check of its own.
+> internet, or the timer died. The GPU workstation pings a check of its own,
+> set up in the [long runs guide](operate-long-runs.md).
 
 > **Status:** written on 2026-11-01 from the documentation of healthchecks.io,
 > systemd and apt. First run on 2026-11-02, sections 1 to 8: the check went
@@ -65,11 +65,11 @@ repository.
 
 | Decision | Value here | Why it matters | Record |
 |---|---|---|---|
-| Which host pings | The service host only | It is always on and powers on by itself after a power cut, so its silence means something. The workstation starts Windows at times and stays off after a cut: its silence is not an alarm, and its long runs ping on their own | [ADR-007](../adr/ADR-007-liveness-is-watched-from-outside.md) |
+| Which host pings | The service host, with this guide; the workstation with a check of its own | The service host is always on and powers on by itself after a power cut, so its silence means something. The workstation starts Windows at times and stays off after a cut: its check is paused by hand before either ([long runs guide](operate-long-runs.md)) | [ADR-007](../adr/ADR-007-liveness-is-watched-from-outside.md), [ADR-015](../adr/ADR-015-long-runs-are-watched-from-outside-in-a-queue-per-gpu.md) |
 | When an email arrives | After 15 minutes without a ping (period 5 minutes, grace time 10), or at once when a ping names a failed check | Around the 04:00 reboot, two pings are less than ten minutes apart; a power cut, a hang or a lost connection lasts longer | This guide |
 | What each ping checks | apt reads its configuration and its sources; unattended-upgrades finished a run without errors in the last 60 hours; no reboot pending for more than two days; the root file system less than 90% full | Each one fails without a sound, and stops the security updates or, with a full disk, the services. The update job starts between 06:00 and 07:00 and the reboot is at 04:00, so the limits of both are crossed only after two days in a row went wrong, never by the minute a job ran | This guide |
 | What a ping carries | `ok`, or the names of the checks that failed | healthchecks.io stores the body of every ping; nothing in it identifies the host | [ADR-007](../adr/ADR-007-liveness-is-watched-from-outside.md) |
-| The ping URL | `https://hc-ping.com/<ping-key>/service-host`: the project's ping key, then the check's slug | One secret for the project instead of one for each check: the checks that come later, such as each long run's, use the same key with a slug of their own | This guide |
+| The ping URL | `https://hc-ping.com/<ping-key>/service-host`: the project's ping key, then the check's slug | One secret for the project instead of one for each check: the workstation's check uses the same key with its own slug, `workstation` | This guide |
 | Where the URL lives | In `/etc/research-platform/heartbeat.env`, which only root can read, and in the dashboard | Whoever holds it can silence a real failure. The script reads the file itself, so it runs the same way from its timer and by hand | [ADR-007](../adr/ADR-007-liveness-is-watched-from-outside.md) |
 | How it runs | A systemd timer and a oneshot service, installed from a clone of this repository | They come back after every reboot, and what runs as root is what git shows | This guide |
 | Where alerts go | The email address of the healthchecks.io account: your personal one, with two-factor authentication on the account | Email does not depend on the house; ntfy, on the service host, would die with it | This guide |
@@ -365,9 +365,9 @@ stop there and write down what you saw.
 
 ## Next
 
-The long runs on the workstation ping healthchecks.io one run at a time, with
-the same ping key and a slug of their own, in the guide for operating long
-runs. What comes before and after it is in the [roadmap](../roadmap.md).
+The workstation pings healthchecks.io too, with the same ping key and a slug
+of its own, in the [long runs guide](operate-long-runs.md). What comes before
+and after it is in the [roadmap](../roadmap.md).
 
 ## References
 

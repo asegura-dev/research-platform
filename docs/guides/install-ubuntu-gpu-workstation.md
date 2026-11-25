@@ -84,7 +84,7 @@ or BitLocker recovery keys and their IDs to this repository.
 | Default boot | Ubuntu first | Ubuntu is the workstation's default system | [ADR-003](../adr/ADR-003-the-workstation-boots-native-ubuntu-not-wsl2.md) |
 | BitLocker | On in Windows. Protection of C: suspended before any firmware, disk or boot change made while it is encrypted (section 3, or section 7 once Windows has encrypted itself), and back on at the end | The firmware, the disks and the boot chain change in between | Sections 3, 7 and 20 |
 | Monitor | On the RTX 5080, as before | Windows is used as before; section 19 measures what the desktop takes | Section 19 |
-| Restore on AC/Power Loss | Power Off | Nothing resumes a training run after a power cut | Section 6 |
+| Restore on AC/Power Loss | Power Off | Power that drops several times in a row would start the machine each time: it is switched on by hand, and its queues resume their runs ([long runs guide](operate-long-runs.md)) | Section 6 |
 | Suspend | Disabled | Open bug with kernel 7.0 and RTX 50 cards on resume | Section 15 |
 | Updates | Security updates install by themselves, never an automatic reboot; kernel and NVIDIA packages only by hand, between runs | A driver update during a series breaks new CUDA processes until a reboot | Sections 14 and 23 |
 | NVIDIA driver | 580, open kernel modules, precompiled and signed by Canonical | NVIDIA's long-term branch, until June 2028; RTX 50 cards need the open modules; no key to enroll | Section 18 |
@@ -411,7 +411,7 @@ the table before changing anything.
 | Advanced > PCI Configuration > Above 4G Decoding | Enabled | Large memory windows for two GPUs; required by Re-Size BAR |
 | Advanced > PCI Configuration > Re-Size BAR Support | Enabled | Full GPU memory window |
 | Boot > Fast Boot | Disabled | ASRock: with Fast Boot "you won't be able to boot from an USB storage device", and the installer, like any rescue system, starts from a USB stick |
-| Advanced > ACPI Configuration > Restore on AC/Power Loss | Power Off | Nothing resumes a training run after a power cut. ASRock's guide documents only Power On and Power Off |
+| Advanced > ACPI Configuration > Restore on AC/Power Loss | Power Off | Power that drops several times in a row would start the machine each time: it is switched on by hand, and its queues resume their runs ([ADR-015](../adr/ADR-015-long-runs-are-watched-from-outside-in-a-queue-per-gpu.md)). ASRock's guide documents only Power On and Power Off |
 | Advanced > Onboard Devices Configuration > Display Priority | External Graphic, unless the current value already shows the firmware screens on your monitor | The monitor is on the RTX 5080: firmware screens and the boot menu must appear there |
 | Advanced > CPU Configuration > AMD fTPM Switch | Unchanged (AMD CPU fTPM) | BitLocker's key is sealed in the TPM |
 | H/W Monitor | Curves for the CPU and case fans | The cooling that protects the hardware lives in the firmware (section 21) |
@@ -1362,8 +1362,9 @@ disk with the SSD's model and size.
   SSD, power limits, nnU-Net benchmarks and a soak test.
 - **Access from outside the house:** Tailscale, in its own guide.
 - **A UPS** is worth considering for long runs: with *Power Off* after a power
-  cut nothing starts again by itself, and a run is lost back to its last
-  checkpoint.
+  cut, the workstation waits until someone switches it on, and each run goes
+  back to its last checkpoint when its queue resumes it
+  ([long runs guide](operate-long-runs.md)).
 
 ## References
 

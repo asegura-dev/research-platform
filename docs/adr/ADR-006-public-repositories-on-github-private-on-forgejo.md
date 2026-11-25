@@ -12,6 +12,12 @@ visibility, not its home. The rest of this record stands: public repositories
 publish the design, never the instance, and a published project installs
 without the platform.
 
+Superseded in part by
+[ADR-015](ADR-015-long-runs-are-watched-from-outside-in-a-queue-per-gpu.md) on
+2026-11-24: `run-signals` is not created. The long runs are watched from
+outside their training, so a project depends on no package of the platform
+at all, which keeps the rule above. The rest of this record stands.
+
 ## Context
 
 Forgejo is reachable only inside the tailnet

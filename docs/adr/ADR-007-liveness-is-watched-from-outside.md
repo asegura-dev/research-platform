@@ -27,6 +27,17 @@ a file on the host that only root can read, rather than in an environment
 variable, so that the script reads it the same way from its timer and by
 hand. The rest of this record stands.
 
+Superseded in part by
+[ADR-015](ADR-015-long-runs-are-watched-from-outside-in-a-queue-per-gpu.md) on
+2026-11-24. A run no longer pings a check of its own, and no package inside
+its training reports it (`run-signals`): `run-queue` watches it from outside,
+and ntfy announces a training that stops advancing. The workstation pings one
+check of its own, `workstation`, every five minutes while Ubuntu runs, paused
+by hand before it is switched off or starts Windows; this replaces the note of
+2026-11-01 where it calls the workstation's silence no alarm. A check per run
+would have needed the project's read-write API key on the workstation, to be
+paused between runs. The rest of this record stands.
+
 ## Context
 
 ntfy on the mini PC can announce what happens on the platform, but not its own

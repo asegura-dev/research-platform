@@ -6,6 +6,7 @@
 > its order, with its checks.
 
 > **Status:** written on 2026-11-04, from the guides at commit `67beafb`.
+> Revised on 2026-11-24 with the user services of the long runs guide.
 
 The examples use the names of the platform's design, such as `server` for the
 service host's SSH alias and `/srv/ntfy` for ntfy's folder, never an
@@ -308,6 +309,21 @@ journalctl -u systemd-oomd --since today                       # what the out-of
 `-n` how many of the last lines, and `-o cat` the messages alone, without their
 dates. On Ubuntu 24.04, a one-shot service that worked says
 `Deactivated successfully` and `Finished`.
+
+**Your own services.** systemd also runs a manager for each user, with its
+units in `~/.config/systemd/user/`. The same commands take `--user`, and need
+no `sudo`:
+
+```bash
+systemctl --user status run-queue@5080 --no-pager             # one of the queues of the long runs
+systemctl --user daemon-reload                                # after a unit in ~/.config/systemd/user changed
+journalctl --user -u run-queue@5080 -n 20 --no-pager -o cat   # its last 20 messages, whole
+sudo loginctl enable-linger "$USER"                           # changes: your manager starts at boot, and stays after you log out
+```
+
+A name with `@`, such as `run-queue@5080`, is an instance of a template unit,
+`run-queue@.service`, which takes the part after `@` as `%i`
+([long runs guide](guides/operate-long-runs.md)).
 
 ## 6. Network
 

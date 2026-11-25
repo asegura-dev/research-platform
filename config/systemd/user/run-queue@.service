@@ -1,0 +1,22 @@
+# Installed as ~/.config/systemd/user/run-queue@.service
+# (docs/guides/operate-long-runs.md). One instance per GPU, named after its
+# model: run-queue@5080 and run-queue@4070. It runs without a session once
+# lingering is on (loginctl enable-linger), and starts with the workstation.
+[Unit]
+Description=Run queue of the RTX %i
+
+[Service]
+ExecStart=%h/.local/bin/run-queue serve %i
+# A stop or a shutdown reaches run-queue alone: it passes the signal on to the
+# run, records the interruption, and the run resumes when the queue starts
+# again. Whatever is left after 90 seconds is killed.
+KillMode=mixed
+TimeoutStopSec=90
+# A crash, or a kill as a power cut would leave things, restarts it, and the
+# interrupted run resumes; a missing ntfy.env (exit 2) does not.
+Restart=on-failure
+RestartSec=30
+RestartPreventExitStatus=2
+
+[Install]
+WantedBy=default.target

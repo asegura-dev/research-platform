@@ -62,7 +62,8 @@ home.
 
 A repository lives where its readers are. Public repositories publish the
 design, never the instance. Names of the first four repositories. Where private
-repositories live is superseded by ADR-013: on GitHub too.
+repositories live is superseded by ADR-013: on GitHub too. `run-signals` is not
+created (ADR-015).
 
 ### 007 - Liveness is watched from outside, because the house can go dark
 
@@ -70,7 +71,8 @@ repositories live is superseded by ADR-013: on GitHub too.
 
 healthchecks.io, because a watcher at home dies with the house. Two levels of
 heartbeat, the per-host one for the service host only, and pings that carry no
-identifiers.
+identifiers. Superseded in part by ADR-015: the workstation pings a check of
+its own, paused by hand, instead of one check per run.
 
 ### 008 - A service host comes back on its own
 
@@ -134,6 +136,17 @@ later service gets its own login too. Refused: ntfy.sh, third-party
 notifiers, HTTPS with Tailscale's certificate, Funnel, and the relay through
 Google. Its first run moved Serve to TCP: over HTTP, Serve answers only by
 the server's name.
+
+### 015 - Long runs are watched from outside their training, in a queue per GPU
+
+[`ADR-015-long-runs-are-watched-from-outside-in-a-queue-per-gpu.md`](ADR-015-long-runs-are-watched-from-outside-in-a-queue-per-gpu.md)
+
+`run-queue` reads a run's output, sends its notices through ntfy and keeps its
+record, so a project changes nothing in its code. Each GPU has a queue that
+stops at its first failure. After a power cut the workstation waits to be
+switched on, and each queue resumes its run with `--c`, up to three times. The
+workstation pings a check of its own, paused by hand. Refused: `run-signals`
+inside the training, *Power On* after a cut, and a check per run.
 
 ## Open decisions
 

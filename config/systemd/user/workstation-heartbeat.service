@@ -1,0 +1,9 @@
+# Installed as ~/.config/systemd/user/workstation-heartbeat.service
+# (docs/guides/operate-long-runs.md).
+[Unit]
+Description=Report to healthchecks.io that the workstation is up
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/workstation-heartbeat
+Nice=10

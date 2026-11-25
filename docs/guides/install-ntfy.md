@@ -4,7 +4,7 @@
 > ntfy runs on the service host, reachable only inside the tailnet, and
 > refuses whoever it does not know; the phone receives its notifications at
 > any hour; and a command on the workstation tells the phone when it ends. How
-> a training uses it comes with the long runs (roadmap).
+> a training uses it is in the [long runs guide](operate-long-runs.md).
 
 > **Status:** written on 2026-11-03 from ntfy's documentation and source, for
 > ntfy 2.28.0 (released on 2026-08-27), and from Tailscale's documentation of
@@ -296,8 +296,8 @@ but `exit 1`.
 ## 9. Living with it
 
 - **Long commands:** `notify -- ` in front of a conversion, a download or a
-  copy. A training notifies through the long runs' guide, with the same three
-  values.
+  copy. A training notifies through `run-queue`, with the same three values
+  ([long runs guide](operate-long-runs.md)).
 - **What a message carries:** a status, a program or run name, and numbers;
   never paths, study identifiers or patient data. It waits on the server for
   48 hours.
@@ -348,9 +348,9 @@ stop there and write down what you saw.
 
 ## Next
 
-The long runs: a training that notifies when it starts, every few dozen
-epochs, when it ends and when it fails, through the same three values. What
-comes next is in the [roadmap](../roadmap.md).
+The [long runs guide](operate-long-runs.md): a training that notifies when it
+starts, every 50 epochs, when it ends and when it fails, through the same
+three values. What comes next is in the [roadmap](../roadmap.md).
 
 ## References
 
