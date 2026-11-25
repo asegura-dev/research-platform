@@ -13,7 +13,8 @@ silence raises an alarm, a power cut costs only the epochs since its last
 checkpoint, the environment it ran in is recorded, and its results survive
 the loss of the house. The thesis is the first project that needs it. The
 service host runs the services that make it possible, and later others, each
-with its guide.
+with its guide. Once the thesis's runs hold, version 1.0 makes it a platform
+that any project can use and cite.
 
 ### What already holds
 
@@ -60,17 +61,35 @@ with its guide.
 
 ### What is left, in this order
 
-1. **Long runs: a training runs for days without anyone watching** (guide for
-   operating long runs).
-   - [ ] It keeps running when the session that started it closes.
-   - [ ] It notifies when it starts, every few dozen epochs with its metric,
-     when it ends and when it fails.
-   - [ ] It pings healthchecks.io as it goes, so that its silence raises the
-     alarm ([ADR-007](adr/ADR-007-liveness-is-watched-from-outside.md)).
-   - [ ] After a power cut, it resumes from its last checkpoint.
-   - [ ] It records the environment it ran in: the commits of its code and of
-     this repository, the kernel, the driver, and the versions of CUDA,
-     PyTorch and nnU-Net.
+1. **Long runs: trainings run for days, one after another, without anyone
+   watching** (guide for operating long runs).
+   - [ ] Each GPU has its own queue. Its runs start one after another by
+     themselves, and keep running when the session that started them closes.
+     A queue stops at its first failure, and does not start a run without
+     enough free disk.
+   - [ ] A training notifies when it starts, every 50 epochs with its metric,
+     when it ends and when it fails; one whose metric must stay unseen while
+     it runs notifies its progress alone. A training that stops advancing is
+     announced too, and a job that is not a training notifies its start, its
+     end and its failure.
+   - [ ] Its notices say how hot its GPU ran since the previous one, whether
+     the GPU slowed down for heat, and how much disk is free.
+   - [ ] The workstation pings healthchecks.io every few minutes while Ubuntu
+     runs, so that its silence raises the alarm
+     ([ADR-007](adr/ADR-007-liveness-is-watched-from-outside.md)). Its check
+     is paused by hand before the workstation is switched off or starts
+     Windows, and resumes by itself with the next ping.
+   - [ ] After a power cut, the workstation stays off until someone switches
+     it on, so that repeated drops of power do not start it each time
+     ([workstation guide](guides/install-ubuntu-gpu-workstation.md), section
+     6). When Ubuntu starts, the queue resumes the interrupted run from its
+     last checkpoint.
+   - [ ] Each run leaves a record of what only the platform knows: this
+     repository's commit, the GPU and its power limit, and how the run went:
+     its start, each interruption and resume with its epoch, its end and its
+     exit status. The project records its own environment (its commit, the
+     kernel, the driver, and the versions of CUDA, PyTorch and nnU-Net), and
+     can cite this record.
 
    `run-signals`, the small package that sends these signals from a training,
    comes here, unless something simpler is enough.
@@ -78,17 +97,33 @@ with its guide.
    - [ ] Results, the private note and the service host's `/srv` have a copy
      away from home, and a restore has been tested (backups, an open
      decision).
-3. **End to end: one short training goes through all of it.**
-   - [ ] Its code from a private repository at a recorded commit, its
-     environment recorded, its heartbeat in healthchecks.io, a cut on purpose
-     and a resume from its checkpoint, its results in the backup, and its
-     start and end announced by ntfy.
+   - [ ] Of each training, the copy keeps its final checkpoint, its logs and
+     its predictions. A checkpoint that later runs depend on is copied as
+     soon as its run ends, and the restore is tested by predicting with a
+     restored checkpoint.
+3. **End to end: a short training on each GPU at once goes through all of
+   it.**
+   - [ ] Its code from a private repository at a recorded commit, its run
+     through the queue with its record written, the workstation's heartbeat
+     in healthchecks.io, a cut on purpose and a resume from its checkpoint,
+     its results in the backup, and its notices on the phone.
+4. **Version 1.0: any project can use the platform and cite it.**
+   - [ ] A guide for a project that uses the platform: the guard it copies,
+     how its runs go through the queues, what each run records, and what is
+     backed up.
+   - [ ] The decisions its operation depends on are closed, each in its
+     record: the RTX 4070's role and the GPUs' power limits.
+   - [ ] The tag `v1.0`, with a changelog and a citation file, archived by
+     Zenodo with a DOI before the thesis's pilot, so that a project cites a
+     version and not a commit. Zenodo gets its decision record, as every
+     service outside the house does.
 
 ### Alongside, without holding up the goal
 
-- [ ] The workstation's draw from the wall (validation guide, section 10, which
-  waits for a meter), and sections 7 to 9 again with the thesis dataset once
-  it is converted, before the RTX 4070's role is decided.
+- [ ] Sections 7 to 9 of the validation guide again with the thesis dataset
+  once it is converted, with both GPUs training at once, before the RTX
+  4070's role is decided; and the workstation's draw from the wall (section
+  10), which waits for a meter.
 - [ ] The thesis repositories take the instance-data guard when they are
   created (guard guide).
 
