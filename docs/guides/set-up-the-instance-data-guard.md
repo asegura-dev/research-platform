@@ -12,6 +12,9 @@
 > hooks, and the workflow's first run on GitHub was green. Revised from that
 > run: section 3 generates most of the list, and section 2 shows the hooks'
 > mode as Ubuntu prints it.
+>
+> Changed on 2026-11-25 for the thesis repositories: a `uv.lock` goes through
+> with its hashes (section 7).
 
 This repository publishes the design of the platform, never its instance
 ([ADR-006](../adr/ADR-006-public-repositories-on-github-private-on-forgejo.md)):
@@ -64,6 +67,7 @@ changes the clone runs until they match what you expect.
 | Where the list lives | `~/.config/research-platform/instance-values.txt`, on each computer, outside every repository | One list serves every clone on that computer, and no `git add` can take it | This guide |
 | What the list holds | Identifiers: names, addresses, your personal address; never secrets | A secret in a plain file is one more place to steal it from, and the shapes already catch tokens and recovery keys | This guide |
 | Public values that look like instance data | Allowed one by one in `scripts/instance-data-allow.txt`, each with what it is | A vendor's key fingerprint or a dataset's checksum is public on purpose, and an exception without a reason is a hole | This guide |
+| Hashes in a `uv.lock` | Long hexadecimal strings are not checked in files named `uv.lock`; every other shape and the list are | uv writes a hash for every package it locks, public by construction: they cannot be allowed one by one, and a project needs its lock file | This guide |
 | How the hooks run | `core.hooksPath` set to `.githooks`, once per clone; the script in Python, with nothing to install | Git takes no hooks from a clone by itself, and Ubuntu comes with Python | This guide |
 | On GitHub | The whole history at every push, and every relative link and anchor; `actions/checkout` pinned to a commit | A short history takes seconds to read, and a pinned action cannot change under the workflow | This guide |
 | What a finding prints | The place and the rule, never the value; on GitHub, not even a file's name | A workflow's log in a public repository is public too | This guide |
@@ -256,6 +260,10 @@ then.
 - **A value that is public on purpose,** such as a vendor's key fingerprint or
   a dataset's checksum, goes in `scripts/instance-data-allow.txt`, with a
   comment that says what it is and where it appears, in a commit of its own.
+- **A `uv.lock` goes through with its hashes.** uv writes a hash for every
+  package it locks, and PyPI's file addresses carry one too, so the guard does
+  not check long hexadecimal strings in files of that name. It checks every
+  other shape and your list in them.
 - **`git commit --no-verify` skips both hooks.** It has no use in these
   repositories: a commit that the guard refuses needs its text or the guard
   fixed, not skipped.

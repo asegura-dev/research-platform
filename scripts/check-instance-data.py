@@ -19,7 +19,9 @@ Instance data is recognised in two ways:
   ~/.config/research-platform/instance-values.txt, outside every repository.
 
 Public values that only look like instance data, such as a vendor's key
-fingerprint, are listed in instance-data-allow.txt, beside this script.
+fingerprint, are listed in instance-data-allow.txt, beside this script. In a
+uv.lock, long hexadecimal strings are the hashes of public packages and are
+not checked; every other shape is.
 
 A finding names the place and the rule, never the value, so that a CI log does
 not publish it again; in CI, a finding in a file's name does not print the
@@ -72,6 +74,11 @@ SHAPES = [
 ]
 SHAPES = [(rule, re.compile(rx, 0 if case_sensitive else re.IGNORECASE))
           for rule, rx, case_sensitive in SHAPES]
+
+# Files whose long hexadecimal strings are the content hashes of public
+# packages: uv writes a sha256 for every distribution it locks, and PyPI's file
+# URLs carry a digest in their path. Every other shape is still checked.
+HASH_FILES = ("uv.lock",)
 
 HUNK = re.compile(r"^@@ -[0-9]+(?:,[0-9]+)? \+([0-9]+)(?:,[0-9]+)? @@")
 NOREPLY_DOMAIN = "@users.noreply.github.com"
@@ -131,10 +138,13 @@ class Checker:
             else:
                 self.values.append((number, value.lower()))
 
-    def check(self, place, text):
+    def check(self, place, text, path=None):
         if self.allowed:
             text = self.allowed.sub(" ", text)
-        rules = [rule for rule, rx in SHAPES if rx.search(text)]
+        skip = (("long-hex-string",)
+                if path and path.rsplit("/", 1)[-1] in HASH_FILES else ())
+        rules = [rule for rule, rx in SHAPES
+                 if rule not in skip and rx.search(text)]
         lowered = text.lower()
         rules += [f"instance value (line {number} of your list)"
                   for number, value in self.values if value in lowered]
@@ -171,7 +181,7 @@ def check_lines(checker, diff):
                 target = line[4:]
                 path = None if target == "/dev/null" else target[2:]
         elif line.startswith("+"):
-            checker.check(f"{label}{path}:{number}", line[1:])
+            checker.check(f"{label}{path}:{number}", line[1:], path)
             number += 1
 
 
