@@ -64,6 +64,9 @@ in either order.
 | [Install ntfy on the service host](docs/guides/install-ntfy.md) | Service host, the phone and the workstation | Docker guide, sections 1 to 6; Tailscale guide, sections 1 to 6, and step 1 of section 8 | First run on 2026-11-04, sections 1 to 8: every check passed, with Serve moved from HTTP to TCP |
 | [Set up the instance-data guard in a clone](docs/guides/set-up-the-instance-data-guard.md) | Each computer where you commit | A clone of this repository | First run on 2026-11-01, sections 1 to 5: every check passed |
 
+The Linux commands that the guides use, each with an example and what its
+output means, are gathered in the [Linux reference](docs/linux-reference.md).
+
 What comes next, and in what order, is in the [roadmap](docs/roadmap.md).
 
 ## Decisions
