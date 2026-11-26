@@ -8,10 +8,19 @@
 > silent.
 
 > **Status:** written on 2026-11-24 from the documentation of systemd,
-> `nvidia-smi`, healthchecks.io and ntfy, and from nnU-Net 2.8.1's code. Not
-> yet run. `run-queue` grew from a watcher tried on the workstation on
-> 2026-11-04, which sent every notice of a short training, of a failure and of
-> a Ctrl+C.
+> `nvidia-smi`, healthchecks.io and ntfy, and from nnU-Net 2.8.1's code.
+> `run-queue` grew from a watcher tried on the workstation on 2026-11-04,
+> which sent every notice of a short training, of a failure and of a Ctrl+C.
+> First run on 2026-11-25 and 2026-11-26, sections 1 to 9: every notice
+> reached the phone, a failure held its queue, a stopped run and a killed one
+> resumed from their checkpoints, the queues started by themselves after a
+> reboot, and the check went down on a test failure and up again, each time
+> with an email. Section 9's first pings failed because the workstation's name
+> lookups took minutes, until it restarted. Revised from that run: section 3
+> gives its notices a quarter of an hour, section 5 waits for the queues to
+> start, `watch` writes its record from the start, `list` says which epoch a
+> run is in, and *If something goes wrong* covers slow name lookups. The
+> rehearsal, section 10, is pending.
 
 The thesis needs weeks of GPU time, in runs of hours to a day each. Nobody
 watches them, so the platform does three things for them
@@ -142,7 +151,8 @@ run-queue watch spleen-try --gpu 5080 --epochs 5 --every 2 -- \
 `--gpu 5080` sets `CUDA_VISIBLE_DEVICES` to that GPU's UUID, which
 `run-queue` asks `nvidia-smi` for; `--every 2` sends an epoch notice every
 two epochs, instead of 50, for the try. The terminal shows nnU-Net's output
-as it goes, and five notices reach the phone within ten minutes:
+as it goes, and five notices reach the phone in about a quarter of an hour,
+the last one after nnU-Net's final validation:
 
 - *spleen-try started*: `nnUNetv2_train on the RTX 5080, with a notice every 2 epochs, 5 epochs planned.`
 - *spleen-try: epoch 2 of 5* and *epoch 4 of 5*: the pseudo Dice, the best EMA
@@ -197,6 +207,7 @@ systemctl --user enable --now run-queue@5080 run-queue@4070
 **Check:**
 
 ```bash
+sleep 5                                                            # the queues take a few seconds to start
 systemctl --user is-active run-queue@5080 run-queue@4070          # active, twice
 journalctl --user -u run-queue@5080 -n 3 --no-pager -o cat        # run-queue: queue 5080: the RTX 5080, waiting for runs
 run-queue list                                                     # queue 4070: idle, and queue 5080: idle
@@ -503,6 +514,7 @@ stop there and write down what you saw.
 | 9 | The second command prints something other than `hc-ping.com 22 workstation` | The URL is not the check's slug URL: copy it again, with **slug** chosen, into the file with `nano`. |
 | 9, any | `curl: (22) The requested URL returned error: 404` | healthchecks.io has no check with that key and slug: the slug must be `workstation`, in the same project as the service host's. |
 | 9, any | `curl: (22) … 429` | More than five pings in a minute: wait a minute. |
+| 9, any | The service fails, or the check goes down while the workstation is up, and `journalctl --user -u workstation-heartbeat -n 20 --no-pager -o cat` shows `curl: (28) Resolving timed out` | Name lookups take too long on the workstation: `resolvectl query --cache=no hc-ping.com` says how long one takes. A failed ping now and then raises no alarm, since the email waits for 15 minutes without any. If they keep failing, restart the workstation and look again. |
 | 10, any | A run failed with `Killed by SIGKILL`, and `systemd-oomd` says it killed it | Memory ran out under two trainings: the validation guide's `nnUNet_n_proc_DA` sets how many processes each one starts. Lower it in `~/bench/nnunet/env.sh`, `source` it, and add the run again under another name, with `--c` at the end of its command, so that it goes on from its last checkpoint with the new value: a run's file keeps the environment it was added with. |
 | 11 | No queue started after a reboot | `loginctl show-user "$USER" -p Linger` must say `yes`, and `systemctl --user is-enabled run-queue@5080` must say `enabled`: sections 4 and 5. |
 

@@ -16,7 +16,8 @@
 > that run on 2026-10-22. Section 22 ran on 2026-10-28 and was revised from it;
 > section 23 ran without problems by 2026-10-29; section 21 has not run yet.
 > The wired port is still to be checked: it reported DOWN, and the run used
-> Wi-Fi.
+> Wi-Fi. Section 22's paragraph on GitHub, added on 2026-11-26, records how
+> the machine was set up for the thesis repositories.
 
 > **History:** until that run, this guide put the SSD in a USB4 enclosure first,
 > as a trial before opening the PC. The enclosure disconnected, in Windows and
@@ -747,9 +748,9 @@ timedatectl                                           # Time zone: America/Mexic
 About the network: the board's wired chip, a Realtek RTL8126 (5 GbE), has a
 Linux driver since kernel 6.9. This HWE kernel includes it and 24.04's GA
 kernel (6.8) does not: do not switch to the GA kernel. On the first run the
-wired port reported DOWN and the machine used Wi-Fi. With a cable plugged in,
-the wired interface should come up; if it does not, see *If something goes
-wrong*.
+wired port reported DOWN and the machine used Wi-Fi, a MediaTek MT7925 (driver
+`mt7925e`). With a cable plugged in, the wired interface should come up; if it
+does not, see *If something goes wrong*.
 
 #### The hardware clock
 
@@ -1258,7 +1259,21 @@ guide, section 6), the same test is
 
 Access from outside the house comes with Tailscale, in its own guide.
 
-**Check:** login with the key works, and login with a password is refused.
+**GitHub from this machine.** The clones in `~/src` push over SSH, with this
+machine's key, which GitHub has from
+[appendix A of the server guide](install-ubuntu-server.md#appendix-a-connect-from-another-computer).
+The GitHub CLI comes from Ubuntu's archive, `sudo apt install gh`, and signs
+in with `gh auth login`; it also answers git's requests for credentials over
+HTTPS. Read-only:
+
+```bash
+git -C ~/src/research-platform remote get-url origin   # the SSH form of the address, without https://
+git -C ~/src/research-platform ls-remote origin HEAD    # a commit and HEAD: GitHub took this machine's key
+gh auth status                                          # Logged in to github.com account <github-user>
+```
+
+**Check:** login with the key works, login with a password is refused, and
+the clone reaches GitHub over SSH.
 
 ### 23. Maintenance between runs
 

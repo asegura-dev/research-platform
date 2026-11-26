@@ -443,6 +443,7 @@ class Record:
 
     def save(self) -> None:
         try:
+            self.path.parent.mkdir(parents=True, exist_ok=True)
             write_json(self.path, self.value)
         except OSError as e:
             say(f"the record could not be written: {e.strerror}")
@@ -700,7 +701,7 @@ def progress_of(job: dict) -> str:
     t = read_log_tail(Path(job["log"]), job.get("epochs"))
     if t.epoch is None:
         return ""
-    return f", {of_total(t.done, job.get('epochs'))}" + (", in the final validation" if t.training_done else "")
+    return f", {t.where()}"
 
 
 # --- Commands ---------------------------------------------------------------------------------

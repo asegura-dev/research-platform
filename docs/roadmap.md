@@ -61,10 +61,13 @@ that any project can use and cite.
 
 ### What is left, in this order
 
+The thesis's pilot does not wait for steps 2 to 4: they are done while its
+first runs train.
+
 1. **Long runs: trainings run for days, one after another, without anyone
    watching** ([long runs guide](guides/operate-long-runs.md);
    [ADR-015](adr/ADR-015-long-runs-are-watched-from-outside-in-a-queue-per-gpu.md)).
-   - [ ] Each GPU has its own queue. Its runs start one after another by
+   - [x] Each GPU has its own queue. Its runs start one after another by
      themselves, and keep running when the session that started them closes.
      A queue stops at its first failure, and does not start a run without
      enough free disk.
@@ -73,19 +76,19 @@ that any project can use and cite.
      it runs notifies its progress alone. A training that stops advancing is
      announced too, and a job that is not a training notifies its start, its
      end and its failure.
-   - [ ] Its notices say how hot its GPU ran since the previous one, whether
+   - [x] Its notices say how hot its GPU ran since the previous one, whether
      the GPU slowed down for heat, and how much disk is free.
-   - [ ] The workstation pings healthchecks.io every few minutes while Ubuntu
+   - [x] The workstation pings healthchecks.io every few minutes while Ubuntu
      runs, so that its silence raises the alarm
      ([ADR-007](adr/ADR-007-liveness-is-watched-from-outside.md)). Its check
      is paused by hand before the workstation is switched off or starts
      Windows, and resumes by itself with the next ping.
-   - [ ] After a power cut, the workstation stays off until someone switches
+   - [x] After a power cut, the workstation stays off until someone switches
      it on, so that repeated drops of power do not start it each time
      ([workstation guide](guides/install-ubuntu-gpu-workstation.md), section
      6). When Ubuntu starts, the queue resumes the interrupted run from its
      last checkpoint.
-   - [ ] Each run leaves a record of what only the platform knows: this
+   - [x] Each run leaves a record of what only the platform knows: this
      repository's commit, the GPU and its power limit, and how the run went:
      its start, each interruption and resume with its epoch, its end and its
      exit status. The project records its own environment (its commit, the
@@ -94,11 +97,19 @@ that any project can use and cite.
 
    A watcher outside the training, `run-queue`, sends these signals, so a
    project changes nothing in its code: `run-signals`, a package inside the
-   training, is not created.
+   training, is not created. The ticked items passed sections 1 to 9 of the
+   guide. Still to be seen on the workstation: the notices of a training that
+   shows only its progress, of a job that is not a training, and of a training
+   that stops advancing.
 2. **Backups: results survive the loss of the house.**
    - [ ] Results, the private note and the service host's `/srv` have a copy
      away from home, and a restore has been tested (backups, an open
      decision).
+   - [ ] The service host holds a second copy at home, and sends the copy away
+     from home itself, even while the workstation trains. The backups' record
+     supersedes in part
+     [ADR-004](adr/ADR-004-compute-and-always-on-services-on-separate-hosts.md),
+     which keeps heavy data on the workstation.
    - [ ] Of each training, the copy keeps its final checkpoint, its logs and
      its predictions. A checkpoint that later runs depend on is copied as
      soon as its run ends, and the restore is tested by predicting with a
@@ -116,9 +127,9 @@ that any project can use and cite.
    - [ ] The decisions its operation depends on are closed, each in its
      record: the RTX 4070's role and the GPUs' power limits.
    - [ ] The tag `v1.0`, with a changelog and a citation file, archived by
-     Zenodo with a DOI before the thesis's pilot, so that a project cites a
-     version and not a commit. Zenodo gets its decision record, as every
-     service outside the house does.
+     Zenodo with a DOI, so that a project cites a version and not a commit.
+     Zenodo gets its decision record, as every service outside the house
+     does.
 
 ### Alongside, without holding up the goal
 
@@ -145,9 +156,11 @@ that any project can use and cite.
 
 ## Refused
 
-- **Waking the workstation from the service host (Wake-on-LAN).** It pays only
-  if the workstation stays off between runs, which is not the plan, and it
-  needs the workstation's wired port connected.
+- **Waking the workstation from the service host (Wake-on-LAN).** After a
+  power cut the workstation stays off until someone switches it on in person,
+  so that repeated drops of power do not start it each time; waking it from
+  afar would skip that choice. It would also need the workstation's wired port
+  connected.
 - **File sync on the service host (Syncthing, or Zotero over WebDAV).** Files
   are already synced with OneDrive.
 - **A password manager, or any store of secrets.** The service host's disk is

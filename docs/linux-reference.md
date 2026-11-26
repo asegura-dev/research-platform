@@ -6,7 +6,8 @@
 > its order, with its checks.
 
 > **Status:** written on 2026-11-04, from the guides at commit `67beafb`.
-> Revised on 2026-11-24 with the user services of the long runs guide.
+> Revised on 2026-11-24 with the user services of the long runs guide, and
+> on 2026-11-26 with the commands of that guide's first run.
 
 The examples use the names of the platform's design, such as `server` for the
 service host's SSH alias and `/srv/ntfy` for ntfy's folder, never an
@@ -218,6 +219,8 @@ Most commands print text, and these tools cut it down to what matters:
 | `awk '{print $2}'` | Prints a column; spaces separate them | `ssh -G server \| awk '/^hostname /{print $2}'` |
 | `awk -F=` | Separates the columns by `=` instead | `awk -F= '{print $1, length($2)}' ntfy.env` prints each name and the length of its value, never the value |
 | `head -n 1`, `tail -n 20`, `tail -n +2` | The first line; the last 20; from the second one on | `tail -n +2` skips a header |
+| `tail -f` | Keeps printing a file's new lines as they come, until Ctrl+C | `tail -f ~/.local/state/research-platform/runs/spleen-q1/output.log` follows a run's output |
+| `python3 -m json.tool` | Prints a JSON file one field per line | `python3 -m json.tool platform.json \| grep event` lists a run's events |
 | `cut -f1` | The first column of a tab-separated file | |
 | `sort -u` | Sorts, without repeats | |
 | `wc -l` | Counts lines | |
@@ -319,11 +322,17 @@ systemctl --user status run-queue@5080 --no-pager             # one of the queue
 systemctl --user daemon-reload                                # after a unit in ~/.config/systemd/user changed
 journalctl --user -u run-queue@5080 -n 20 --no-pager -o cat   # its last 20 messages, whole
 sudo loginctl enable-linger "$USER"                           # changes: your manager starts at boot, and stays after you log out
+loginctl show-user "$USER" -p Linger                          # Linger=yes once it is on
+systemctl --user kill --signal=SIGKILL run-queue@5080         # changes: kills the queue and its run at once, as a power cut would
 ```
 
 A name with `@`, such as `run-queue@5080`, is an instance of a template unit,
 `run-queue@.service`, which takes the part after `@` as `%i`
 ([long runs guide](guides/operate-long-runs.md)).
+
+**Careful:** the `kill` line stops whatever the queue is running without
+letting it save: the run resumes from its last checkpoint and loses the
+epochs since. It is for the long runs guide's tests of a power cut.
 
 ## 6. Network
 
@@ -344,6 +353,16 @@ through Tailscale Serve
 ```bash
 ip -br addr         # each network interface, UP or DOWN, with its addresses
 ```
+
+**Names.** A name such as `hc-ping.com` becomes an address by asking the DNS
+servers that the network hands out:
+
+```bash
+resolvectl query --cache=no hc-ping.com   # its addresses, and how long the network took to answer
+```
+
+A lookup takes a fraction of a second. One that takes seconds or minutes
+makes every command that uses the name wait, or give up.
 
 **curl: HTTP from the terminal.**
 
@@ -409,7 +428,7 @@ address forgets the old entry.
 
 **Public keys from GitHub.** `ssh-import-id gh:` followed by your GitHub user
 adds the public keys registered there to `~/.ssh/authorized_keys` on the
-machine where it runs.
+machine where it runs. The same keys let a computer push to GitHub over SSH.
 
 **Careful:** a private key, the file without `.pub`, is a password. It never
 goes to a chat, a repository or another computer.
@@ -463,6 +482,8 @@ git log --oneline -3                          # the last three commits
 git log -1 --format='%h %ad %s' --date=short  # the last one: its short hash, date and subject
 git status --short                            # what changed in your copy: M for modified, ?? for new
 git diff --stat                               # how many lines changed, per file
+git remote get-url origin                     # where this clone pushes: git@… over SSH, https://… over HTTPS
+git ls-remote origin HEAD                     # GitHub's last commit, asked over that address
 ```
 
 These change your copy, or GitHub:
@@ -475,6 +496,10 @@ git push                                      # sends your commits to GitHub
 ```
 
 `git commit -F -` with a heredoc makes the commit (section 1).
+
+**The GitHub CLI.** `gh` works with GitHub from the terminal: repositories,
+pull requests and the workflow's runs. `gh auth status` says whether it is
+signed in, and as whom.
 
 **Hooks.** `git config core.hooksPath .githooks` makes a clone run the
 instance-data guard before each commit
