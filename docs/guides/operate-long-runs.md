@@ -544,9 +544,10 @@ stop there and write down what you saw.
 
 ## Next
 
-The backups: a copy of the results away from the house, with a restore
-tested by predicting with a restored checkpoint. What comes after them is in
-the [roadmap](../roadmap.md).
+The backups: a copy of the results on the service host
+([ADR-016](../adr/ADR-016-backups-stay-at-home-pulled-by-the-service-host.md)),
+with a restore tested by predicting with a restored checkpoint. What comes
+after them is in the [roadmap](../roadmap.md).
 
 ## References
 

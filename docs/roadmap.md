@@ -11,7 +11,7 @@ The platform is for long trainings that nobody watches: days of nnU-Net on the
 workstation. While one runs, the phone hears how it goes and when it fails, a
 silence raises an alarm, a power cut costs only the epochs since its last
 checkpoint, the environment it ran in is recorded, and its results survive
-the loss of the house. The thesis is the first project that needs it. The
+the loss of the workstation. The thesis is the first project that needs it. The
 service host runs the services that make it possible, and later others, each
 with its guide. Once the thesis's runs hold, version 1.0 makes it a platform
 that any project can use and cite.
@@ -101,15 +101,17 @@ first runs train.
    guide. Still to be seen on the workstation: the notices of a training that
    shows only its progress, of a job that is not a training, and of a training
    that stops advancing.
-2. **Backups: results survive the loss of the house.**
+2. **Backups: results survive the loss of the workstation.**
    - [ ] Results, the private note and the service host's `/srv` have a copy
-     away from home, and a restore has been tested (backups, an open
-     decision).
-   - [ ] The service host holds a second copy at home, and sends the copy away
-     from home itself, even while the workstation trains. The backups' record
-     supersedes in part
+     on another machine at home, and a restore has been tested
+     ([ADR-016](adr/ADR-016-backups-stay-at-home-pulled-by-the-service-host.md)).
+     A copy away from home is described there and not used: the service host
+     holds the copy, and a loss of the house would take it too.
+   - [ ] The service host pulls the results itself, with rsnapshot over SSH
+     and a key that can only read them, even while the workstation trains.
+     ADR-016 supersedes in part
      [ADR-004](adr/ADR-004-compute-and-always-on-services-on-separate-hosts.md),
-     which keeps heavy data on the workstation.
+     which kept heavy data on the workstation.
    - [ ] Of each training, the copy keeps its final checkpoint, its logs and
      its predictions. A checkpoint that later runs depend on is copied as
      soon as its run ends, and the restore is tested by predicting with a

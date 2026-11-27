@@ -46,7 +46,7 @@ training.
 The mini PC hosts the services that must stay up while the workstation reboots
 or runs Windows. Heavy data never leaves the workstation, and services are
 reachable only through Tailscale. Code hosting and CI left the mini PC with
-ADR-013.
+ADR-013, and the results got a copy on it with ADR-016.
 
 ### 005 - Forgejo, not GitLab, for private code
 
@@ -148,6 +148,17 @@ switched on, and each queue resumes its run with `--c`, up to three times. The
 workstation pings a check of its own, paused by hand. Refused: `run-signals`
 inside the training, *Power On* after a cut, and a check per run.
 
+### 016 - Backups stay at home, pulled by the service host over SSH
+
+[`ADR-016-backups-stay-at-home-pulled-by-the-service-host.md`](ADR-016-backups-stay-at-home-pulled-by-the-service-host.md)
+
+The service host pulls the results from the workstation with rsnapshot, over
+SSH, with a key of its own that can only read them; a restore is a file
+copy. No copy leaves the house, so a loss of the house takes the results;
+restic sending to a Hetzner Storage Box is the way to add one. Refused:
+restic pushed to a `rest-server` on the service host. Supersedes ADR-004 in
+part.
+
 ## Open decisions
 
 Each one gets its record when the work reaches it. Operational choices that
@@ -160,4 +171,3 @@ is handled during an install) are recorded in that guide's decisions table.
 | GPU power limits applied at every start | Validation guide, sections 8 and 10 |
 | Switching to Windows remotely | A later revision of the Tailscale guide |
 | Experiment tracker: whether one is needed, then MLflow or Aim | Tracker guide, if a project's own record of runs falls short ([roadmap](../roadmap.md)) |
-| A copy of irreplaceable data away from home | Backups guide |

@@ -13,6 +13,13 @@ by hand, with no runner on the workstation. The experiment tracker waits
 until a project needs more than its own record of runs
 ([roadmap](../roadmap.md)). The rest of this record stands.
 
+On 2026-11-27,
+[ADR-016](ADR-016-backups-stay-at-home-pulled-by-the-service-host.md) gave
+the results a copy on the mini PC, which pulls it from the workstation, and
+kept the backups at home: heavy data no longer stays only on the
+workstation, and the backups have no copy away from home. The rest of this
+record stands.
+
 ## Context
 
 Two machines are available:
