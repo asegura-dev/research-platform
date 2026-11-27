@@ -452,6 +452,13 @@ sent no email.
   command`. The run takes the folder and the environment with it. `--log`
   puts its output, and `platform.json` next to it, in the project's own run
   folder: one folder per run.
+- **A fold trained again** needs its old results out of the way: move the
+  fold's folder away, or give the run an `nnUNet_results` of its own, before
+  `run-queue add`. A queue resumes a run with `--c`, and nnU-Net then looks
+  for `checkpoint_final` before `checkpoint_latest`. In a folder that still
+  holds an earlier run's `checkpoint_final`, a run cut short resumes from that
+  one: it trains no epoch, deletes its own `checkpoint_latest`, and finishes
+  with the earlier run's model and results, without an error.
 - **The notices a run sends:**
   - `--every 0` sends none per epoch, for series of many runs;
   - `--progress-only` leaves out the pseudo Dice and the losses, for runs
@@ -517,6 +524,7 @@ stop there and write down what you saw.
 | 9, any | The service fails, or the check goes down while the workstation is up, and `journalctl --user -u workstation-heartbeat -n 20 --no-pager -o cat` shows `curl: (28) Resolving timed out` | Name lookups take too long on the workstation: `resolvectl query --cache=no hc-ping.com` says how long one takes. A failed ping now and then raises no alarm, since the email waits for 15 minutes without any. If they keep failing, restart the workstation and look again. |
 | 10, any | A run failed with `Killed by SIGKILL`, and `systemd-oomd` says it killed it | Memory ran out under two trainings: the validation guide's `nnUNet_n_proc_DA` sets how many processes each one starts. Lower it in `~/bench/nnunet/env.sh`, `source` it, and add the run again under another name, with `--c` at the end of its command, so that it goes on from its last checkpoint with the new value: a run's file keeps the environment it was added with. |
 | 11 | No queue started after a reboot | `loginctl show-user "$USER" -p Linger` must say `yes`, and `systemctl --user is-enabled run-queue@5080` must say `enabled`: sections 4 and 5. |
+| 11, any | *training done* arrives a minute or two after *resumed*, and the run's `platform.json` has a `resumed` event without `epochs_done` | It resumed from an earlier run's `checkpoint_final`, left in the same fold folder, so its model and results are that run's. Move the fold's folder away, then add the run again under another name: it starts from epoch 0. |
 
 ## Next
 
@@ -543,7 +551,7 @@ the [roadmap](../roadmap.md).
   `checkpoint_latest`, then `checkpoint_best`):
   https://github.com/MIC-DKFZ/nnUNet/blob/v2.8.1/nnunetv2/run/run_training.py
 - nnU-Net 2.8.1, `nnUNetTrainer.py` (`save_every = 50`, the lines it prints at
-  each epoch):
+  each epoch, and `on_train_end`, which deletes `checkpoint_latest`):
   https://github.com/MIC-DKFZ/nnUNet/blob/v2.8.1/nnunetv2/training/nnUNetTrainer/nnUNetTrainer.py
 - nnU-Net 2.8.1, the trainers of fixed length (`nnUNetTrainer_5epochs` to
   `nnUNetTrainer_8000epochs`):
