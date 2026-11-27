@@ -6,8 +6,9 @@
 > its order, with its checks.
 
 > **Status:** written on 2026-11-04, from the guides at commit `67beafb`.
-> Revised on 2026-11-24 with the user services of the long runs guide, and
-> on 2026-11-26 with the commands of that guide's first run.
+> Revised on 2026-11-24 with the user services of the long runs guide, on
+> 2026-11-26 with the commands of that guide's first run, and on 2026-11-27
+> with those of its rehearsal.
 
 The examples use the names of the platform's design, such as `server` for the
 service host's SSH alias and `/srv/ntfy` for ntfy's folder, never an
@@ -98,10 +99,14 @@ heredoc.
 **Parentheses** run their commands in a copy of the shell: a setting made
 inside, such as `umask` (section 2), ends with them.
 
-**Loops.**
+**Loops and waits.** `for` runs its commands once for each item, and `until`
+runs them again and again until its condition succeeds. `[ -e FILE ]`
+succeeds when the file exists, and `sleep` waits: `sleep 60` a minute,
+`sleep 10m` ten. Ctrl+C stops a loop or a wait.
 
 ```bash
 for k in /etc/ssh/ssh_host_*_key.pub; do ssh-keygen -lf "$k"; done   # one fingerprint per host key
+until [ -e "$F" ]; do sleep 60; done                                  # looks once a minute until the file in F exists
 ```
 
 **Finding a program.** `command -v` prints where a program is, or nothing when
@@ -118,8 +123,10 @@ the SSH session, that started it. Inside tmux it keeps running:
 tmux new -A -s admin           # enters the session named admin, and creates it if it does not exist
 ```
 
-Ctrl+b then d leaves the session running, and `tmux attach -t admin` comes back
-to it, at the same machine or over SSH. A reboot ends it.
+Ctrl+b then c opens another window in the session, with its own shell, and
+Ctrl+b then a window's number, such as 0, goes to that window. Ctrl+b then d
+leaves the session running, and `tmux attach -t admin` comes back to it, at
+the same machine or over SSH. A reboot ends it.
 
 ## 2. Files and permissions
 

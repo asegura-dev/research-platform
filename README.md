@@ -62,7 +62,7 @@ in either order.
 | [Install Docker on the service host](docs/guides/install-docker.md) | Service host | Server guide, steps 1 to 11; Tailscale guide, sections 1 to 6 | First run on 2026-10-30, sections 1 to 6: every check passed |
 | [Watch the service host with healthchecks.io](docs/guides/watch-the-service-host-with-healthchecks.md) | Service host | Server guide, steps 1 to 11; Tailscale guide, sections 1 to 6 | First run on 2026-11-02, sections 1 to 8: every check passed |
 | [Install ntfy on the service host](docs/guides/install-ntfy.md) | Service host, the phone and the workstation | Docker guide, sections 1 to 6; Tailscale guide, sections 1 to 6, and step 1 of section 8 | First run on 2026-11-04, sections 1 to 8: every check passed, with Serve moved from HTTP to TCP |
-| [Operate long runs on the workstation](docs/guides/operate-long-runs.md) | GPU workstation | Validation guide, section 6; ntfy guide, sections 7 and 8; heartbeat guide, sections 1 and 2 | First run on 2026-11-25 and 2026-11-26, sections 1 to 9: every check passed; the rehearsal, section 10, pending |
+| [Operate long runs on the workstation](docs/guides/operate-long-runs.md) | GPU workstation | Validation guide, section 6; ntfy guide, sections 7 and 8; heartbeat guide, sections 1 and 2 | First run from 2026-11-25 to 2026-11-27, sections 1 to 10: every check passed, the rehearsal's cut on a run of its own |
 | [Set up the instance-data guard in a clone](docs/guides/set-up-the-instance-data-guard.md) | Each computer where you commit | A clone of this repository | First run on 2026-11-01, sections 1 to 5: every check passed |
 
 The Linux commands that the guides use, each with an example and what its

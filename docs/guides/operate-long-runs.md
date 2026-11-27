@@ -20,7 +20,20 @@
 > gives its notices a quarter of an hour, section 5 waits for the queues to
 > start, `watch` writes its record from the start, `list` says which epoch a
 > run is in, and *If something goes wrong* covers slow name lookups. The
-> rehearsal, section 10, is pending.
+> rehearsal, section 10, ran on 2026-11-26: the four runs finished in order
+> on each GPU in four hours, every notice reached the phone, `systemd-oomd`
+> killed nothing, and the heartbeat sent no email while they ran. The RTX
+> 5080 peaked at 74 °C and the RTX 4070 at 67 °C. The memory in use peaked
+> at 27.7 GiB, against 18.3 GiB in the validation's soak, during a final
+> validation: these take 7 to 17 minutes. The kernel logged nothing but
+> three NVRM out-of-memory lines, once, at the start of a run that went on
+> unharmed. The cut on purpose, by hand after a notice, was missed twice; a
+> third try, on a run of 100 epochs on the 5080 alone, was cut 10 minutes
+> after its first `checkpoint_latest`, lost 12 epochs and resumed from
+> epoch 50. Revised from the rehearsal: section 10 cuts with a line that
+> waits for that checkpoint, section 11 warns about a fold trained again in
+> its old folder, and *If something goes wrong* covers a checkpoint broken
+> by a cut.
 
 The thesis needs weeks of GPU time, in runs of hours to a day each. Nobody
 watches them, so the platform does three things for them
@@ -412,18 +425,20 @@ run-queue add 4070 rehearsal-4070-short --epochs 10 --every 5 -- "$T" 9 3d_fullr
 run-queue list
 ```
 
-The long runs notify every 50 epochs, the default. After
-*rehearsal-5080-long: epoch 100 of 250* arrives, and before epoch 150, the
-power cut on purpose:
+The long runs notify every 50 epochs, the default. The power cut on purpose
+comes 10 minutes after the 5080's long run saves its first
+`checkpoint_latest`, at epoch 50, some 45 minutes in. A line in window 1
+waits for it, so that nobody has to catch the notice:
 
 ```bash
-systemctl --user kill --signal=SIGKILL run-queue@5080
+F="$nnUNet_results/Dataset009_Spleen/nnUNetTrainer_250epochs__nnUNetResEncUNetMPlans__3d_fullres/fold_0/checkpoint_latest.pth"
+until [ -e "$F" ]; do sleep 60; done && sleep 10m && systemctl --user kill --signal=SIGKILL run-queue@5080
 ```
 
-Half a minute later, *rehearsal-5080-long resumed* arrives, and the run goes
-on from epoch 100. Log out of the desktop and back in while it runs, if you
-like: nothing stops. When both *Queue … is empty* notices have arrived, stop
-the monitor with Ctrl+C in window 0, and look:
+The line returns once it has cut; Ctrl+C before that cancels the cut. Half a
+minute later, *rehearsal-5080-long resumed* arrives, and the run goes on from
+epoch 50. When both *Queue … is empty* notices have arrived, stop the monitor
+with Ctrl+C in window 0 (Ctrl+b then 0), and look:
 
 ```bash
 S=$(cat ~/bench/logs/rehearsal-start)
@@ -438,7 +453,7 @@ The kernel lines and `systemd-oomd` are the validation's section 11 checks.
 `summary.sh` gives each GPU's peak temperature and the clock event reasons, to
 compare with the soak. The long run's record shows `interrupted`, with
 `"clean": false` and the epochs done when it was cut, then `resumed`, with
-`"epochs_done": 100`, and `ended` with 250.
+`"epochs_done": 50`, and `ended` with 250.
 
 **Check:** the four runs finished, in order on each GPU; the long run lost at
 most 50 epochs to the cut; every epoch notice arrived with its temperature;
@@ -518,6 +533,7 @@ stop there and write down what you saw.
 | 7, any | A run fails at once with `Exit status 127` or `did not start` | The program is not where the run's file says: `run-queue list` names the run, and its log the error. Add it again with the right path, under another name. |
 | 8, any | After `systemctl --user kill`, the queue does not come back | `systemctl --user status run-queue@5080 --no-pager` must say `activating (auto-restart)`, then `active`. If it says `failed`, the unit lacks `Restart=on-failure`: install it again (section 5) and `daemon-reload`. |
 | 8, any | The resumed run starts from epoch 0 | It found no checkpoint: nnU-Net printed `Cannot continue training`. Its `nnUNet_results` must be the same as when it was added, which the run's file keeps. |
+| 8, any | After a cut, the run fails as soon as it resumes, with `Exit status 1`, and its log ends with `PytorchStreamReader failed reading zip archive` or `EOFError: Ran out of input` | The cut came while nnU-Net was writing a checkpoint, which it writes over the old one, and left it broken. When it resumes, nnU-Net loads the first it finds of `checkpoint_final.pth`, `checkpoint_latest.pth` and `checkpoint_best.pth` in the fold's folder: rename that one with `.broken` at the end, then `run-queue retry NAME --resume`. The run goes on from the next of them, or from epoch 0 if none is left. |
 | 9 | The second command prints something other than `hc-ping.com 22 workstation` | The URL is not the check's slug URL: copy it again, with **slug** chosen, into the file with `nano`. |
 | 9, any | `curl: (22) The requested URL returned error: 404` | healthchecks.io has no check with that key and slug: the slug must be `workstation`, in the same project as the service host's. |
 | 9, any | `curl: (22) … 429` | More than five pings in a minute: wait a minute. |
@@ -551,7 +567,8 @@ the [roadmap](../roadmap.md).
   `checkpoint_latest`, then `checkpoint_best`):
   https://github.com/MIC-DKFZ/nnUNet/blob/v2.8.1/nnunetv2/run/run_training.py
 - nnU-Net 2.8.1, `nnUNetTrainer.py` (`save_every = 50`, the lines it prints at
-  each epoch, and `on_train_end`, which deletes `checkpoint_latest`):
+  each epoch, `save_checkpoint`, which writes over the old file, and
+  `on_train_end`, which deletes `checkpoint_latest`):
   https://github.com/MIC-DKFZ/nnUNet/blob/v2.8.1/nnunetv2/training/nnUNetTrainer/nnUNetTrainer.py
 - nnU-Net 2.8.1, the trainers of fixed length (`nnUNetTrainer_5epochs` to
   `nnUNetTrainer_8000epochs`):

@@ -97,7 +97,7 @@ first runs train.
 
    A watcher outside the training, `run-queue`, sends these signals, so a
    project changes nothing in its code: `run-signals`, a package inside the
-   training, is not created. The ticked items passed sections 1 to 9 of the
+   training, is not created. The ticked items passed sections 1 to 10 of the
    guide. Still to be seen on the workstation: the notices of a training that
    shows only its progress, of a job that is not a training, and of a training
    that stops advancing.
